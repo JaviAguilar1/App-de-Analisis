@@ -160,7 +160,72 @@
   #sideResize:active::before,#sideResize.drag::before{background:var(--blue);}
   body.side #sideResize{display:block;}
   @media (max-width:639px){body.side #sideResize{display:none;}}
+  /* ===== Partidos / Listas ===== */
+  .mhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+  .vtitle{font-size:17px;font-weight:800;margin:0;}
+  .modalsub{color:var(--muted2);font-size:12px;margin:0 0 8px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:9px;}
+  .card.active{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset;}
+  .card .top{display:flex;align-items:center;gap:9px;}
+  .card .nm{flex:1;min-width:0;}
+  .card .nm b{font-size:14.5px;font-weight:800;display:block;}
+  .card .nm small{color:var(--muted2);font-size:12px;}
+  .card .badge2{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);border-radius:20px;font-size:11px;font-weight:700;padding:3px 9px;color:var(--muted);}
+  .card .cbtns{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;}
+  .card .cbtns button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:8px;font-size:12px;font-weight:700;padding:6px 10px;cursor:pointer;}
+  .card .cbtns button.go{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .card .cbtns button.danger{color:#ff9a9a;border-color:#5a2a2a;}
+  .listitem{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 9px;margin-bottom:6px;}
+  .listitem.slide{border-color:var(--gold);}
+  .listitem .grip{flex:0 0 auto;color:var(--muted2);cursor:grab;font-size:16px;touch-action:none;user-select:none;}
+  .listitem .ic{flex:0 0 26px;height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;}
+  .listitem .ic.clip{background:var(--green);color:#062c12;}
+  .listitem .ic.slide{background:var(--gold);color:#3a2c00;}
+  .listitem .info{flex:1;min-width:0;font-size:13px;font-weight:600;}
+  .listitem .info small{display:block;color:var(--muted2);font-weight:500;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .listitem .rm{flex:0 0 auto;background:none;border:none;color:var(--muted2);font-size:18px;cursor:pointer;padding:0 4px;}
+  .listitem.dragging{opacity:.4;}
+  .listitem.dragover{border-color:var(--blue);}
+  .clip .sel{flex:0 0 auto;width:20px;height:20px;border-radius:5px;border:2px solid var(--line);background:var(--panel2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:transparent;}
+  .clip .sel.on{background:var(--blue);border-color:var(--blue);color:#fff;}
+  .selbar{position:sticky;top:0;z-index:5;display:none;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--blue);border-radius:11px;padding:9px 11px;margin-bottom:10px;}
+  .selbar.on{display:flex;}
+  .selbar .txt{flex:1;font-size:13px;font-weight:700;}
+  .selbar button{background:var(--blue);border:1px solid var(--blue);color:#fff;border-radius:8px;font-size:12px;font-weight:800;padding:7px 11px;cursor:pointer;}
+  .selbar button.ghost{background:none;color:var(--muted);border-color:var(--line);}
+  textarea.note{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px;font-size:13px;font-family:inherit;resize:vertical;}
+  /* Overlay de diapositiva durante reproducción de lista */
+  #slideOverlay{display:none;position:fixed;inset:0;z-index:60;background:rgba(6,10,18,.96);align-items:center;justify-content:center;padding:24px;}
+  #slideOverlay.on{display:flex;}
+  #slideOverlay .slidebox{max-width:640px;width:100%;text-align:center;}
+  #slideOverlay .stitle{font-size:26px;font-weight:800;color:var(--gold);margin-bottom:14px;}
+  #slideOverlay .stext{font-size:19px;line-height:1.5;color:var(--text);white-space:pre-wrap;}
+  #slideOverlay .sfoot{margin-top:26px;display:flex;align-items:center;justify-content:center;gap:16px;color:var(--muted2);font-size:13px;}
+  #slideOverlay .sfoot button{background:var(--blue);border:1px solid var(--blue);color:#fff;border-radius:9px;font-size:14px;font-weight:800;padding:9px 16px;cursor:pointer;}
+  .syncpill{position:fixed;top:8px;right:8px;z-index:70;font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;background:var(--panel);border:1px solid var(--line);color:var(--muted2);opacity:.85;}
+  .syncpill.ok{color:var(--green);border-color:#1c4;}
+  .syncpill.off{color:#ffb86b;}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script>
+// ==== Firebase (proyecto app-de-analisis) ====
+var firebaseConfig={
+  apiKey:"AIzaSyDp5lV8Er2tIByYm2_Pbvq7ASvrSPMcCwA",
+  authDomain:"app-de-analisis.firebaseapp.com",
+  databaseURL:"https://app-de-analisis-default-rtdb.firebaseio.com",
+  projectId:"app-de-analisis",
+  storageBucket:"app-de-analisis.firebasestorage.app",
+  messagingSenderId:"433207305485",
+  appId:"1:433207305485:web:26791c309528e75c40fc44"
+};
+var FB=null,FBDB=null,FBREADY=false;
+try{
+  firebase.initializeApp(firebaseConfig);
+  FBDB=firebase.database();FB=firebase;FBREADY=true;
+}catch(e){console.warn("Firebase no inicializó:",e);}
+</script>
 </head>
 <body>
 <header>
@@ -197,12 +262,37 @@
 </div>
 <div id="sideResize" title="Arrastrá para ajustar el ancho"></div>
 <main>
+  <section class="view" id="viewMatches">
+    <div class="mhead">
+      <h2 class="vtitle">Partidos</h2>
+      <button class="act primary" id="newMatchBtn">+ Nuevo partido</button>
+    </div>
+    <div id="matchesBody"></div>
+  </section>
+  <section class="view" id="viewLists">
+    <div class="playerbar" id="listPlayerBar" style="display:none">
+      <div class="txt" id="listPlayerTxt">—<small></small></div>
+      <button id="listPlayerStop">■ Parar</button>
+    </div>
+    <div id="slideOverlay"><div class="slidebox"><div class="stitle" id="slideTitle"></div><div class="stext" id="slideText"></div><div class="sfoot"><span id="slideCount"></span><button id="slideNext">Siguiente ▶</button></div></div></div>
+    <div class="mhead">
+      <h2 class="vtitle">Listas</h2>
+      <button class="act primary" id="newListBtn">+ Nueva lista</button>
+    </div>
+    <p class="logmeta" id="listsMeta"></p>
+    <div id="listsBody"></div>
+  </section>
   <section class="view on" id="viewMark">
     <div id="pendingBar"><div class="txt" id="pendingTxt"></div><button id="pendingCancel">Cancelar</button></div>
     <p class="legend">El reloj sigue al <b>video de arriba</b>. Captura de cada botón: <b>▶ adelante</b> · <b>◀ atrás</b> (jugada ya vista) · <b>⟷ centrado</b> (±5s). En Transición ofensiva: tocás la <b>zona</b> al recuperar y el <b>desenlace</b> al terminar. Después revisás y presentás los cortes en <b>Clips</b>.</p>
     <div id="grids"></div>
   </section>
   <section class="view" id="viewClips">
+    <div class="selbar" id="selBar">
+      <div class="txt" id="selTxt">0 seleccionados</div>
+      <button class="ghost" id="selClear">Limpiar</button>
+      <button id="selAdd">Agregar a lista</button>
+    </div>
     <div class="playerbar" id="playerBar" style="display:none">
       <div class="txt" id="playerTxt">—<small></small></div>
       <button id="playerStop">■ Parar</button>
@@ -221,10 +311,13 @@
   </section>
 </main>
 <nav>
+  <button id="navMatches"><span class="ico">🗂️</span>Partidos</button>
   <button class="on" id="navMark"><span class="ico">⊕</span>Marcar</button>
   <button id="navClips"><span class="ico">▶</span>Clips</button>
+  <button id="navLists"><span class="ico">📋</span>Listas</button>
   <button id="navLog"><span class="ico">☰</span>Registro<span class="badge" id="navBadge" style="display:none">0</span></button>
 </nav>
+<div class="syncpill off" id="syncPill">local</div>
 <div id="toast"></div>
 <div class="modal" id="editModal"><div class="sheet">
   <h4 id="editTitle">Editar marca</h4>
@@ -240,6 +333,29 @@
   <h4>Fijar tiempo del video</h4><label>mm:ss</label>
   <input class="note" id="clockInput" inputmode="numeric" placeholder="00:00">
   <div class="row"><button class="act" id="clockCancel">Cancelar</button><button class="act primary" id="clockSet">Fijar</button></div>
+</div></div>
+<div class="modal" id="matchModal"><div class="sheet">
+  <h4 id="matchModalTitle">Nuevo partido</h4>
+  <label>Rival</label><input class="note" id="mmRival" placeholder="ej: Vélez">
+  <label>Categoría</label>
+  <div class="seg" id="mmCat" style="margin-bottom:10px"><button class="active" data-cat="5ta">5ta</button><button data-cat="4ta">4ta</button><button data-cat="6ta">6ta</button></div>
+  <label>Fecha</label><input class="note" id="mmDate" type="date">
+  <div class="row"><button class="act" id="mmCancel">Cancelar</button><button class="act primary" id="mmSave">Crear</button></div>
+</div></div>
+<div class="modal" id="addListModal"><div class="sheet">
+  <h4>Agregar a lista</h4>
+  <p class="modalsub" id="addListCount"></p>
+  <div id="addListOptions"></div>
+  <label style="margin-top:10px">O crear una lista nueva</label>
+  <input class="note" id="newListName" placeholder="Nombre de la lista">
+  <div class="row"><button class="act" id="addListCancel">Cancelar</button><button class="act primary" id="addListCreate">Crear y agregar</button></div>
+</div></div>
+<div class="modal" id="slideModal"><div class="sheet">
+  <h4 id="slideModalTitle">Diapositiva de texto</h4>
+  <label>Título</label><input class="note" id="slTitle" placeholder="ej: Punto clave">
+  <label>Texto</label><textarea class="note" id="slText" rows="3" placeholder="Mensaje que querés mostrar"></textarea>
+  <label>Duración (segundos)</label><input class="note" id="slDur" type="number" min="1" value="6" inputmode="numeric">
+  <div class="row"><button class="act" id="slCancel">Cancelar</button><button class="act primary" id="slSave">Agregar</button></div>
 </div></div>
 <script>
 var PRE=10,POST=10,AROUND=5;
@@ -265,9 +381,48 @@ var SECTIONS=[
    {sub:"Cómo termina",tags:[["Afuera","pre"],["Al arco","pre"]]}]}
 ];
 var MODEGLYPH={post:"▶",pre:"◀",around:"⟷"};
-var LS_KEY="tigre_tagger_v3";
-var state={rival:"",cat:"5ta",period:"1T",entries:[],clockBase:0,running:false,runSince:0,ytId:""};
+var LS_KEY="analisis_db_v1";        // respaldo local de toda la base
+var ACTIVE_KEY="analisis_active_v1"; // id del partido activo
+
+/* ===== Modelo de datos =====
+   DB.matches[id] = { id, rival, cat, date, ytId, videoName, entries[], playlists[] }
+   playlist = { id, name, items[] }
+   item = { type:"clip", clipId }  |  { type:"slide", title, text, dur }
+   'state' es una VISTA del partido activo: apunta al match seleccionado.
+   Todo el tagger/clips/registro sigue usando state.entries igual que antes. */
+var DB={matches:{}};
+var activeId=null;
 var pending=null; // {zone, tIn}
+
+// Vista del partido activo. Se rellena en setActive().
+var state={rival:"",cat:"5ta",period:"1T",entries:[],ytId:"",videoName:""};
+
+function activeMatch(){return activeId?DB.matches[activeId]:null;}
+function matchList(){return Object.keys(DB.matches).map(function(k){return DB.matches[k];})
+  .sort(function(a,b){return (b.date||"").localeCompare(a.date||"")|| (b.created||0)-(a.created||0);});}
+
+function newMatch(rival,cat,date){
+  var id="m"+Date.now()+Math.floor(Math.random()*1000);
+  DB.matches[id]={id:id,rival:rival||"",cat:cat||"5ta",date:date||"",ytId:"",videoName:"",
+    entries:[],playlists:[],created:Date.now()};
+  return id;
+}
+function setActive(id){
+  activeId=id;
+  var m=DB.matches[id];
+  if(!m){state={rival:"",cat:"5ta",period:"1T",entries:[],ytId:"",videoName:""};return;}
+  // state pasa a ser un espejo del match activo (comparten los mismos arrays por referencia)
+  state.rival=m.rival;state.cat=m.cat;state.ytId=m.ytId||"";state.videoName=m.videoName||"";
+  state.entries=m.entries;               // misma referencia: push/edit impacta el match
+  if(!state.period)state.period="1T";
+  try{localStorage.setItem(ACTIVE_KEY,id);}catch(e){}
+}
+// Sincroniza los campos escalares de state hacia el match activo antes de persistir.
+function syncStateToMatch(){
+  var m=activeMatch();if(!m)return;
+  m.rival=state.rival;m.cat=state.cat;m.ytId=state.ytId||"";m.videoName=state.videoName||"";
+  m.entries=state.entries;
+}
 
 /* ===== Fuente de video =====
    VID: capa de abstracción sobre el reproductor activo (local <video> o YouTube).
@@ -303,8 +458,84 @@ var VID={
 function currentMs(){return VID.ready?VID.timeMs():0;}
 function fmt(ms){var s=Math.max(0,Math.floor(ms/1000));var m=Math.floor(s/60);var ss=s%60;return String(m).padStart(2,"0")+":"+String(ss).padStart(2,"0");}
 function parseTime(str){var p=String(str).trim().split(":");var m=0,s=0;if(p.length===2){m=parseInt(p[0])||0;s=parseInt(p[1])||0;}else{s=parseInt(p[0])||0;}return(m*60+s)*1000;}
-function load(){try{var r=localStorage.getItem(LS_KEY);if(r){var o=JSON.parse(r);for(var k in o)state[k]=o[k];}}catch(e){}state.running=false;state.runSince=0;}
-function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(state));}catch(e){}}
+var SYNC={pill:null,pending:false};
+function setSync(cls,txt){if(!SYNC.pill)SYNC.pill=document.getElementById("syncPill");if(SYNC.pill){SYNC.pill.className="syncpill "+cls;SYNC.pill.textContent=txt;}}
+
+// Migración: si existe una base vieja de un solo partido, la convierte en el primer match.
+function migrateOld(){
+  try{
+    var old=localStorage.getItem("tigre_tagger_v3");
+    if(old){var o=JSON.parse(old);
+      if(o&&o.entries&&o.entries.length){
+        var id=newMatch(o.rival||"Partido importado",o.cat||"5ta","");
+        DB.matches[id].ytId=o.ytId||"";DB.matches[id].entries=o.entries;
+      }
+      localStorage.removeItem("tigre_tagger_v3");
+    }
+  }catch(e){}
+}
+function loadLocal(){
+  try{var r=localStorage.getItem(LS_KEY);if(r){DB=JSON.parse(r);if(!DB.matches)DB={matches:{}};}}catch(e){DB={matches:{}};}
+}
+function saveLocal(){try{localStorage.setItem(LS_KEY,JSON.stringify(DB));}catch(e){}}
+
+var saveT=null;
+function save(){
+  syncStateToMatch();
+  saveLocal();
+  // Debounce de escritura a Firebase para no spamear en marcado rápido.
+  if(FBREADY){
+    setSync("","guardando…");SYNC.pending=true;
+    clearTimeout(saveT);
+    saveT=setTimeout(function(){pushToFirebase();},600);
+  }else{setSync("off","local");}
+}
+function pushToFirebase(){
+  if(!FBREADY)return;
+  try{
+    FBDB.ref("matches").set(DB.matches,function(err){
+      if(err){setSync("off","offline");}
+      else{SYNC.pending=false;setSync("ok","✓ nube");}
+    });
+  }catch(e){setSync("off","offline");}
+}
+var fbBound=false;
+function bindFirebase(cb){
+  if(!FBREADY){cb&&cb();return;}
+  // Auth anónima preparada para el futuro; si falla, seguimos igual (reglas abiertas).
+  var start=function(){
+    FBDB.ref("matches").once("value").then(function(snap){
+      var val=snap.val();
+      if(val){DB.matches=val;saveLocal();setSync("ok","✓ nube");}
+      else{ // primera vez: subimos lo local (o migrado) a la nube
+        setSync("ok","✓ nube");pushToFirebase();
+      }
+      // Escucha cambios en vivo desde otros dispositivos.
+      if(!fbBound){fbBound=true;
+        FBDB.ref("matches").on("value",function(s){
+          if(SYNC.pending)return; // no pisar mientras tenemos escritura propia en vuelo
+          var v=s.val();if(v){DB.matches=v;saveLocal();onRemoteUpdate();}
+        });
+      }
+      cb&&cb();
+    }).catch(function(){setSync("off","offline");cb&&cb();});
+  };
+  try{
+    FB.auth().signInAnonymously().then(start).catch(function(){start();});
+  }catch(e){start();}
+}
+function onRemoteUpdate(){
+  // Reaplica el partido activo y refresca lo visible.
+  if(activeId&&DB.matches[activeId])setActive(activeId);
+  var cur=document.querySelector(".view.on");
+  if(cur){var id=cur.id;
+    if(id==="viewMatches")renderMatches();
+    else if(id==="viewClips")renderClips();
+    else if(id==="viewLists")renderLists();
+    else if(id==="viewLog")renderLog();
+  }
+  updateBadge();refreshCounts();
+}
 
 var clockEl=document.getElementById("clock");
 var playBtn=document.getElementById("play");
@@ -333,7 +564,7 @@ document.getElementById("fileInput").onchange=function(e){
   if(VID.local&&VID.local.src&&VID.local.src.indexOf("blob:")===0)URL.revokeObjectURL(VID.local.src);
   var url=URL.createObjectURL(f);
   VID.kind="local";VID.local=localVideo;localVideo.src=url;
-  state.ytId="";save();
+  state.ytId="";state.videoName=f.name||"";save();
   showPlayer("local");toast("Video cargado ✓");renderClips();
   localVideo.onloadedmetadata=function(){renderClock();};
 };
@@ -529,29 +760,28 @@ document.getElementById("copyBtn").onclick=function(){var txt=buildReport();
   function fb(){var ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");toast("Informe copiado ✓");}catch(_){toast("No se pudo copiar");}ta.remove();}};
 document.getElementById("dlBtn").onclick=function(){var blob=new Blob([buildReport()],{type:"text/plain;charset=utf-8"});var a=document.createElement("a");
   a.href=URL.createObjectURL(blob);a.download="rival_"+((state.rival||"sin-nombre").replace(/\s+/g,"-"))+"_"+state.cat+".txt";a.click();URL.revokeObjectURL(a.href);toast("Descargado ✓");};
-document.getElementById("clearBtn").onclick=function(){
-  if(state.entries.length&&!confirm("¿Empezar un partido nuevo? Se borran las marcas actuales (exportá antes si querés guardarlas)."))return;
-  state.entries=[];state.clockBase=0;state.running=false;state.runSince=0;state.period="1T";pending=null;
-  setPeriodUI();renderPending();save();setPlay();renderClock();refreshCounts();updateBadge();renderLog();toast("Listo para un partido nuevo");};
+document.getElementById("clearBtn").onclick=function(){openMatchModal(null);};
 
 var rivalEl=document.getElementById("rival");rivalEl.oninput=function(){state.rival=rivalEl.value;save();};
 document.querySelectorAll("#catGroup button").forEach(function(p){p.onclick=function(){document.querySelectorAll("#catGroup button").forEach(function(x){x.classList.remove("active");});p.classList.add("active");state.cat=p.getAttribute("data-cat");save();};});
 function setPeriodUI(){document.querySelectorAll("#periodGroup button").forEach(function(x){x.classList.toggle("active",x.getAttribute("data-p")===state.period);});}
 document.querySelectorAll("#periodGroup button").forEach(function(p){p.onclick=function(){state.period=p.getAttribute("data-p");setPeriodUI();save();toast("Marcando "+state.period);};});
-var navMark=document.getElementById("navMark"),navClips=document.getElementById("navClips"),navLog=document.getElementById("navLog");
+var navMatches=document.getElementById("navMatches"),navMark=document.getElementById("navMark"),navClips=document.getElementById("navClips"),navLists=document.getElementById("navLists"),navLog=document.getElementById("navLog");
+var VIEWS={matches:"viewMatches",mark:"viewMark",clips:"viewClips",lists:"viewLists",log:"viewLog"};
+var NAVS={matches:navMatches,mark:navMark,clips:navClips,lists:navLists,log:navLog};
 function show(v){
-  document.getElementById("viewMark").classList.toggle("on",v==="mark");
-  document.getElementById("viewClips").classList.toggle("on",v==="clips");
-  document.getElementById("viewLog").classList.toggle("on",v==="log");
-  navMark.classList.toggle("on",v==="mark");
-  navClips.classList.toggle("on",v==="clips");
-  navLog.classList.toggle("on",v==="log");
+  for(var k in VIEWS)document.getElementById(VIEWS[k]).classList.toggle("on",k===v);
+  for(var n in NAVS)NAVS[n].classList.toggle("on",n===v);
+  if(v==="matches")renderMatches();
   if(v==="log")renderLog();
   if(v==="clips")renderClips();
+  if(v==="lists")renderLists();
   document.querySelector("main").scrollTop=0;
 }
+navMatches.onclick=function(){show("matches");};
 navMark.onclick=function(){show("mark");};
 navClips.onclick=function(){show("clips");};
+navLists.onclick=function(){show("lists");};
 navLog.onclick=function(){show("log");};
 
 /* ===== Reproductor de clips ===== */
@@ -570,7 +800,11 @@ function playClip(e){
 }
 function tickClip(){
   if(!activeClip)return;
-  if(currentMs()>=activeClip.out){VID.pause();stopClip();}
+  if(currentMs()>=activeClip.out){
+    VID.pause();
+    if(activeClip.inList){activeClip=null;nextListItem();return;}
+    stopClip();
+  }
 }
 function stopClip(){
   activeClip=null;
@@ -581,26 +815,296 @@ function markPlaying(id){
   document.querySelectorAll(".clip").forEach(function(c){c.classList.toggle("playing",c.getAttribute("data-id")===String(id));});
 }
 document.getElementById("playerStop").onclick=function(){VID.pause();stopClip();};
+var selected={}; // clipId -> true
+function updateSelBar(){
+  var ids=Object.keys(selected).filter(function(k){return selected[k];});
+  var bar=document.getElementById("selBar");
+  bar.classList.toggle("on",ids.length>0);
+  document.getElementById("selTxt").textContent=ids.length+" seleccionado"+(ids.length===1?"":"s");
+}
+document.getElementById("selClear").onclick=function(){selected={};document.querySelectorAll(".clip .sel").forEach(function(s){s.classList.remove("on");s.textContent="";});updateSelBar();};
+document.getElementById("selAdd").onclick=function(){openAddToList();};
 function renderClips(){
   var meta=document.getElementById("clipsMeta"),body=document.getElementById("clipsBody");
+  var m=activeMatch();
+  if(!m){meta.textContent="";body.innerHTML='<div class="empty">Elegí un partido en <b>Partidos</b> para ver sus clips.</div>';return;}
   meta.textContent=(state.rival||"Rival sin nombre")+" · "+state.cat+" · "+state.entries.length+" clips";
-  if(!VID.ready){body.innerHTML='<div class="empty">Cargá un video arriba (archivo o YouTube)<br>y tus marcas van a aparecer acá como clips reproducibles.</div>';return;}
-  if(!state.entries.length){body.innerHTML='<div class="empty">Todavía no hay marcas.<br>Andá a <b>Marcar</b> y capturá jugadas mientras mirás el video.</div>';return;}
+  if(!state.entries.length){body.innerHTML='<div class="empty">Todavía no hay marcas en este partido.<br>Andá a <b>Marcar</b> y capturá jugadas mientras mirás el video.</div>';return;}
   var colorOf={};SECTIONS.forEach(function(s){colorOf[s.name]=COL[s.color];});
   body.innerHTML="";
   orderedEntries().forEach(function(e){
     var row=document.createElement("div");row.className="clip";row.setAttribute("data-id",e.id);
-    row.innerHTML='<div class="pl">▶</div>'+
+    var selOn=selected[e.id]?" on":"";
+    row.innerHTML='<div class="sel'+selOn+'">'+(selected[e.id]?"✓":"")+'</div>'+
+      '<div class="pl">▶</div>'+
       '<div class="t"><b>'+(e.period||"1T")+'</b> '+e.tIn+'–'+e.tOut+'</div>'+
       '<div class="lab">'+escapeHtml(e.tag)+(e.note?'<small>'+escapeHtml(e.note)+'</small>':'')+'</div>'+
       '<div class="ph2" style="background:'+(colorOf[e.phase]||"#888")+'"></div>';
-    row.onclick=function(){playClip(e);};
+    var sel=row.querySelector(".sel");
+    sel.onclick=function(ev){ev.stopPropagation();
+      selected[e.id]=!selected[e.id];sel.classList.toggle("on",selected[e.id]);sel.textContent=selected[e.id]?"✓":"";updateSelBar();};
+    row.onclick=function(){if(VID.ready)playClip(e);else toast("Cargá el video de este partido para reproducir");};
     body.appendChild(row);
   });
+  updateSelBar();
+}
+/* Agregar seleccionados a una lista (existente o nueva) */
+function openAddToList(){
+  var ids=Object.keys(selected).filter(function(k){return selected[k];});
+  if(!ids.length){toast("No hay clips seleccionados");return;}
+  document.getElementById("addListCount").textContent=ids.length+" clip"+(ids.length===1?"":"s")+" a agregar";
+  var opts=document.getElementById("addListOptions");opts.innerHTML="";
+  var pls=playlists();
+  if(!pls.length)opts.innerHTML='<p class="modalsub">No hay listas todavía. Creá una abajo.</p>';
+  pls.forEach(function(pl){
+    var b=document.createElement("button");b.className="act";b.style.width="100%";b.style.marginBottom="6px";b.style.textAlign="left";
+    b.textContent=pl.name+"  ("+pl.items.length+")";
+    b.onclick=function(){addClipsToPlaylist(pl,ids);};
+    opts.appendChild(b);
+  });
+  document.getElementById("newListName").value="";
+  document.getElementById("addListModal").classList.add("on");
+}
+function addClipsToPlaylist(pl,ids){
+  ids.forEach(function(id){pl.items.push({type:"clip",clipId:id});});
+  save();document.getElementById("addListModal").classList.remove("on");
+  selected={};updateSelBar();renderClips();
+  toast("Agregado a "+pl.name);
+}
+document.getElementById("addListCancel").onclick=function(){document.getElementById("addListModal").classList.remove("on");};
+document.getElementById("addListCreate").onclick=function(){
+  var name=document.getElementById("newListName").value.trim();
+  if(!name){toast("Poné un nombre para la lista");return;}
+  var ids=Object.keys(selected).filter(function(k){return selected[k];});
+  var pl={id:"pl"+Date.now(),name:name,items:[]};
+  playlists().push(pl);addClipsToPlaylist(pl,ids);
+};
+
+/* ================= PARTIDOS ================= */
+function renderMatches(){
+  var body=document.getElementById("matchesBody");
+  var list=matchList();
+  if(!list.length){body.innerHTML='<div class="empty">No hay partidos todavía.<br>Tocá <b>+ Nuevo partido</b> para empezar a analizar.</div>';return;}
+  body.innerHTML="";
+  list.forEach(function(m){
+    var card=document.createElement("div");card.className="card"+(m.id===activeId?" active":"");
+    var fecha=m.date?new Date(m.date+"T00:00").toLocaleDateString("es-AR"):"sin fecha";
+    var np=(m.playlists||[]).length;
+    card.innerHTML='<div class="top"><div class="nm"><b>'+escapeHtml(m.rival||"Rival sin nombre")+'</b>'+
+      '<small>'+m.cat+' · '+fecha+'</small></div>'+
+      '<div class="badge2">'+(m.entries||[]).length+' clips</div></div>'+
+      '<div class="cbtns">'+
+      '<button class="go" data-a="open">'+(m.id===activeId?"Activo ✓":"Abrir")+'</button>'+
+      '<button data-a="rename">Renombrar</button>'+
+      '<button data-a="dup">Duplicar</button>'+
+      '<button class="danger" data-a="del">Borrar</button></div>';
+    card.querySelector('[data-a="open"]').onclick=function(){setActive(m.id);toast("Partido activo: "+(m.rival||"—"));syncActiveToHeader();show("mark");};
+    card.querySelector('[data-a="rename"]').onclick=function(){openMatchModal(m.id);};
+    card.querySelector('[data-a="dup"]').onclick=function(){duplicateMatch(m.id);};
+    card.querySelector('[data-a="del"]').onclick=function(){deleteMatch(m.id);};
+    body.appendChild(card);
+  });
+}
+function duplicateMatch(id){
+  var m=DB.matches[id];if(!m)return;
+  var nid=newMatch((m.rival||"")+" (copia)",m.cat,m.date);
+  DB.matches[nid].ytId=m.ytId;DB.matches[nid].videoName=m.videoName;
+  DB.matches[nid].entries=JSON.parse(JSON.stringify(m.entries||[]));
+  DB.matches[nid].playlists=JSON.parse(JSON.stringify(m.playlists||[]));
+  save();renderMatches();toast("Partido duplicado");
+}
+function deleteMatch(id){
+  var m=DB.matches[id];if(!m)return;
+  if(!confirm("¿Borrar el partido \""+(m.rival||"sin nombre")+"\" y todos sus clips y listas?"))return;
+  delete DB.matches[id];
+  if(activeId===id){var l=matchList();activeId=l.length?l[0].id:null;if(activeId)setActive(activeId);else state.entries=[];}
+  save();renderMatches();syncActiveToHeader();updateBadge();toast("Partido borrado");
+}
+var matchModalId=null;
+function openMatchModal(id){
+  matchModalId=id;
+  var m=id?DB.matches[id]:null;
+  document.getElementById("matchModalTitle").textContent=id?"Editar partido":"Nuevo partido";
+  document.getElementById("mmSave").textContent=id?"Guardar":"Crear";
+  document.getElementById("mmRival").value=m?m.rival:"";
+  document.getElementById("mmDate").value=m?(m.date||""):new Date().toISOString().slice(0,10);
+  var cat=m?m.cat:"5ta";
+  document.querySelectorAll("#mmCat button").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-cat")===cat);});
+  document.getElementById("matchModal").classList.add("on");
+  setTimeout(function(){document.getElementById("mmRival").focus();},50);
+}
+document.querySelectorAll("#mmCat button").forEach(function(b){b.onclick=function(){document.querySelectorAll("#mmCat button").forEach(function(x){x.classList.remove("active");});b.classList.add("active");};});
+document.getElementById("mmCancel").onclick=function(){document.getElementById("matchModal").classList.remove("on");};
+document.getElementById("newMatchBtn").onclick=function(){openMatchModal(null);};
+document.getElementById("mmSave").onclick=function(){
+  var rival=document.getElementById("mmRival").value.trim();
+  var cat=document.querySelector("#mmCat button.active").getAttribute("data-cat");
+  var date=document.getElementById("mmDate").value;
+  if(matchModalId){
+    var m=DB.matches[matchModalId];m.rival=rival;m.cat=cat;m.date=date;
+    if(matchModalId===activeId){state.rival=rival;state.cat=cat;syncActiveToHeader();}
+  }else{
+    var id=newMatch(rival,cat,date);setActive(id);syncActiveToHeader();
+  }
+  save();document.getElementById("matchModal").classList.remove("on");
+  renderMatches();
+  if(!matchModalId)show("mark");
+};
+// Refleja el partido activo en el header (rival/cat/period) y en el video.
+function syncActiveToHeader(){
+  rivalEl.value=state.rival||"";
+  document.querySelectorAll("#catGroup button").forEach(function(p){p.classList.toggle("active",p.getAttribute("data-cat")===state.cat);});
+  setPeriodUI();refreshCounts();updateBadge();
+  // Cargar video del partido: YouTube se reabre solo; local hay que recargarlo a mano.
+  if(state.ytId){document.getElementById("ytInput").value="https://youtu.be/"+state.ytId;loadYT(state.ytId);}
+  else{showPlayer(null);VID.kind=null;VID.ytReady=false;if(localVideo)localVideo.removeAttribute("src");
+    if(state.videoName)toast("Este partido usa el video local: "+state.videoName);}
+}
+
+/* ================= LISTAS ================= */
+function playlists(){var m=activeMatch();return m?(m.playlists||(m.playlists=[])):[];}
+function findClip(id){return state.entries.filter(function(e){return String(e.id)===String(id);})[0];}
+function renderLists(){
+  var meta=document.getElementById("listsMeta"),body=document.getElementById("listsBody");
+  var m=activeMatch();
+  if(!m){meta.textContent="";body.innerHTML='<div class="empty">Primero elegí un partido en <b>Partidos</b>.</div>';return;}
+  meta.textContent=(m.rival||"Rival sin nombre")+" · "+m.cat+" · "+playlists().length+" listas";
+  var pls=playlists();
+  if(!pls.length){body.innerHTML='<div class="empty">No hay listas en este partido.<br>Tocá <b>+ Nueva lista</b>, o seleccioná clips en <b>Clips</b> y agregalos a una lista.</div>';return;}
+  body.innerHTML="";
+  pls.forEach(function(pl){
+    var card=document.createElement("div");card.className="card";
+    card.innerHTML='<div class="top"><div class="nm"><b>'+escapeHtml(pl.name)+'</b><small>'+pl.items.length+' ítems</small></div></div>';
+    var itemsWrap=document.createElement("div");itemsWrap.style.marginTop="10px";
+    pl.items.forEach(function(it,idx){itemsWrap.appendChild(listItemRow(pl,it,idx));});
+    card.appendChild(itemsWrap);
+    var btns=document.createElement("div");btns.className="cbtns";
+    btns.innerHTML='<button class="go" data-a="play">▶ Reproducir</button>'+
+      '<button data-a="slide">+ Diapositiva</button>'+
+      '<button data-a="rename">Renombrar</button>'+
+      '<button class="danger" data-a="del">Borrar lista</button>';
+    btns.querySelector('[data-a="play"]').onclick=function(){playPlaylist(pl);};
+    btns.querySelector('[data-a="slide"]').onclick=function(){openSlideModal(pl,null);};
+    btns.querySelector('[data-a="rename"]').onclick=function(){var n=prompt("Nombre de la lista:",pl.name);if(n!==null){pl.name=n.trim()||pl.name;save();renderLists();}};
+    btns.querySelector('[data-a="del"]').onclick=function(){if(confirm("¿Borrar la lista \""+pl.name+"\"?")){m.playlists=m.playlists.filter(function(x){return x.id!==pl.id;});save();renderLists();}};
+    card.appendChild(btns);
+    body.appendChild(card);
+  });
+}
+function listItemRow(pl,it,idx){
+  var row=document.createElement("div");row.className="listitem"+(it.type==="slide"?" slide":"");
+  row.setAttribute("draggable","true");row.setAttribute("data-idx",idx);
+  var inner;
+  if(it.type==="slide"){
+    inner='<div class="grip">⠿</div><div class="ic slide">T</div>'+
+      '<div class="info">'+escapeHtml(it.title||"Diapositiva")+'<small>'+escapeHtml(it.text||"")+' · '+(it.dur||6)+'s</small></div>'+
+      '<button class="rm">×</button>';
+  }else{
+    var c=findClip(it.clipId);
+    var lab=c?(c.tag+" · "+c.tIn+"–"+c.tOut):"(clip borrado)";
+    inner='<div class="grip">⠿</div><div class="ic clip">▶</div>'+
+      '<div class="info">'+escapeHtml(c?c.tag:"(clip borrado)")+'<small>'+(c?c.tIn+"–"+c.tOut+(c.note?" · "+escapeHtml(c.note):""):"ya no existe")+'</small></div>'+
+      '<button class="rm">×</button>';
+  }
+  row.innerHTML=inner;
+  row.querySelector(".rm").onclick=function(){pl.items.splice(idx,1);save();renderLists();};
+  if(it.type==="slide")row.querySelector(".info").onclick=function(){openSlideModal(pl,idx);};
+  bindDrag(row,pl);
+  return row;
+}
+// Drag & drop para reordenar ítems dentro de una lista.
+var dragIdx=null,dragPl=null;
+function bindDrag(row,pl){
+  row.addEventListener("dragstart",function(){dragIdx=+row.getAttribute("data-idx");dragPl=pl;row.classList.add("dragging");});
+  row.addEventListener("dragend",function(){row.classList.remove("dragging");document.querySelectorAll(".listitem").forEach(function(r){r.classList.remove("dragover");});});
+  row.addEventListener("dragover",function(e){e.preventDefault();if(dragPl===pl)row.classList.add("dragover");});
+  row.addEventListener("dragleave",function(){row.classList.remove("dragover");});
+  row.addEventListener("drop",function(e){e.preventDefault();if(dragPl!==pl)return;
+    var to=+row.getAttribute("data-idx");if(dragIdx===null||dragIdx===to)return;
+    var moved=pl.items.splice(dragIdx,1)[0];pl.items.splice(to,0,moved);dragIdx=null;dragPl=null;save();renderLists();});
+}
+document.getElementById("newListBtn").onclick=function(){
+  var m=activeMatch();if(!m){toast("Elegí un partido primero");show("matches");return;}
+  var n=prompt("Nombre de la lista nueva:","Lista "+(playlists().length+1));
+  if(n===null)return;
+  playlists().push({id:"pl"+Date.now(),name:n.trim()||"Lista",items:[]});
+  save();renderLists();
+};
+// --- Diapositivas ---
+var slidePl=null,slideIdx=null;
+function openSlideModal(pl,idx){
+  slidePl=pl;slideIdx=idx;
+  var it=(idx!==null)?pl.items[idx]:null;
+  document.getElementById("slideModalTitle").textContent=(idx!==null)?"Editar diapositiva":"Nueva diapositiva";
+  document.getElementById("slSave").textContent=(idx!==null)?"Guardar":"Agregar";
+  document.getElementById("slTitle").value=it?(it.title||""):"";
+  document.getElementById("slText").value=it?(it.text||""):"";
+  document.getElementById("slDur").value=it?(it.dur||6):6;
+  document.getElementById("slideModal").classList.add("on");
+  setTimeout(function(){document.getElementById("slTitle").focus();},50);
+}
+document.getElementById("slCancel").onclick=function(){document.getElementById("slideModal").classList.remove("on");};
+document.getElementById("slSave").onclick=function(){
+  var title=document.getElementById("slTitle").value.trim();
+  var text=document.getElementById("slText").value.trim();
+  var dur=Math.max(1,parseInt(document.getElementById("slDur").value)||6);
+  var it={type:"slide",title:title,text:text,dur:dur};
+  if(slideIdx!==null)slidePl.items[slideIdx]=it;else slidePl.items.push(it);
+  save();document.getElementById("slideModal").classList.remove("on");renderLists();
+};
+
+/* ========= Reproductor de LISTA (clips + diapositivas) ========= */
+var LP={pl:null,i:-1,slideT:null};
+function playPlaylist(pl){
+  if(!pl.items.length){toast("La lista está vacía");return;}
+  LP.pl=pl;LP.i=-1;
+  document.getElementById("listPlayerBar").style.display="flex";
+  nextListItem();
+}
+function stopListPlayer(){
+  LP.pl=null;LP.i=-1;clearTimeout(LP.slideT);
+  document.getElementById("listPlayerBar").style.display="none";
+  document.getElementById("slideOverlay").classList.remove("on");
+  VID.pause();activeClip=null;
+}
+document.getElementById("listPlayerStop").onclick=stopListPlayer;
+document.getElementById("slideNext").onclick=function(){clearTimeout(LP.slideT);advanceList();};
+function advanceList(){document.getElementById("slideOverlay").classList.remove("on");nextListItem();}
+function nextListItem(){
+  if(!LP.pl){return;}
+  LP.i++;
+  if(LP.i>=LP.pl.items.length){toast("Fin de la lista");stopListPlayer();return;}
+  var it=LP.pl.items[LP.i];
+  var pos="("+(LP.i+1)+"/"+LP.pl.items.length+")";
+  document.getElementById("listPlayerTxt").innerHTML=escapeHtml(LP.pl.name)+"<small>"+pos+"</small>";
+  if(it.type==="slide"){
+    showSlide(it,pos);
+  }else{
+    document.getElementById("slideOverlay").classList.remove("on");
+    var c=findClip(it.clipId);
+    if(!c){nextListItem();return;} // clip borrado: saltar
+    if(!VID.ready){toast("Cargá el video de este partido para reproducir la lista");stopListPlayer();return;}
+    playClipInList(c);
+  }
+}
+function showSlide(it,pos){
+  var ov=document.getElementById("slideOverlay");
+  document.getElementById("slideTitle").textContent=it.title||"";
+  document.getElementById("slideText").textContent=it.text||"";
+  document.getElementById("slideCount").textContent=pos+" · pasa en "+(it.dur||6)+"s";
+  ov.classList.add("on");
+  VID.pause();
+  clearTimeout(LP.slideT);
+  LP.slideT=setTimeout(function(){advanceList();},(it.dur||6)*1000);
+}
+// Igual que playClip pero al terminar avanza la lista.
+function playClipInList(e){
+  activeClip={id:e.id,in:parseTime(e.tIn),out:parseTime(e.tOut),inList:true};
+  VID.seek(activeClip.in);VID.play();
 }
 
 /* ===== Divisor arrastrable video/tags ===== */
-var VID_H_KEY="tigre_tagger_vidH";
+var VID_H_KEY="analisis_vidH";
 var resizeEl=document.getElementById("vidResize");
 function clampVidH(px){var min=120,max=Math.round(window.innerHeight*0.75);return Math.max(min,Math.min(max,px));}
 function setVidH(px){px=clampVidH(px);document.documentElement.style.setProperty("--vidH",px+"px");}
@@ -672,14 +1176,30 @@ window.addEventListener("touchmove",sMove,{passive:false});
 window.addEventListener("mouseup",sEnd);
 window.addEventListener("touchend",sEnd);
 
-load();
-rivalEl.value=state.rival||"";
-document.querySelectorAll("#catGroup button").forEach(function(p){p.classList.toggle("active",p.getAttribute("data-cat")===state.cat);});
-setPeriodUI();buildGrids();setPlay();renderClock();updateBadge();renderPending();
-// Restaurar layout elegido
+// ===== Arranque =====
+loadLocal();
+if(!Object.keys(DB.matches).length)migrateOld(); // trae base vieja de un solo partido si existía
+buildGrids();setPlay();renderClock();
 if(localStorage.getItem(LAYOUT_KEY)==="side"&&window.innerWidth>=640)applyLayout(true);else applyLayout(false);
-// Reabrí el YouTube que estabas mirando (los archivos locales no se pueden re-cargar solos por seguridad del navegador).
-if(state.ytId){document.getElementById("ytInput").value="https://youtu.be/"+state.ytId;loadYT(state.ytId);}
+
+function bootActive(){
+  var saved=null;try{saved=localStorage.getItem(ACTIVE_KEY);}catch(e){}
+  var l=matchList();
+  if(saved&&DB.matches[saved])setActive(saved);
+  else if(l.length)setActive(l[0].id);
+  else activeId=null;
+  syncActiveToHeader();updateBadge();
+  // Si no hay ningún partido, llevamos al usuario a crear uno.
+  if(!activeId){show("matches");}
+}
+
+// Primero mostramos lo local al instante; luego Firebase corrige/mergea.
+bootActive();
+bindFirebase(function(){
+  bootActive();
+  var cur=document.querySelector(".view.on");if(cur&&cur.id==="viewMatches")renderMatches();
+});
+
 if("serviceWorker" in navigator){navigator.serviceWorker.register("service-worker.js").catch(function(){});}
 </script>
 </body>
