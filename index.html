@@ -200,10 +200,11 @@
   #present{display:none;position:fixed;inset:0;z-index:100;background:#000;flex-direction:column;}
   #present.on{display:flex;}
   #present .pstage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;}
-  #present .pvideo{width:100%;height:100%;display:none;align-items:center;justify-content:center;}
-  #present .pvideo.on{display:flex;}
-  #present .pvideo>*{width:100%;height:100%;}
-  #present .pvideo video,#present .pvideo iframe{width:100%!important;height:100%!important;object-fit:contain;background:#000;border:0;}
+  #present .pvideo{width:100%;height:100%;display:none;position:relative;}
+  #present .pvideo.on{display:block;}
+  #present .pvideo>*{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;display:block!important;}
+  #present .pvideo video,#present .pvideo iframe{width:100%!important;height:100%!important;max-width:none!important;object-fit:contain;background:#000;border:0;position:absolute;inset:0;}
+  #present #ytFrame,#present #localVideo{max-width:none!important;max-height:none!important;}
   #present .pslide{display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6vw;max-width:1100px;}
   #present .pslide.on{display:flex;}
   #present .pslide .ptitle{font-size:clamp(28px,5vw,64px);font-weight:800;color:var(--gold);margin-bottom:3vh;line-height:1.15;}
@@ -995,7 +996,7 @@ function syncActiveToHeader(){
 }
 
 /* ================= LISTAS ================= */
-function playlists(){var m=activeMatch();return m?(m.playlists||(m.playlists=[])):[];}
+function playlists(){var m=activeMatch();if(!m)return [];m.playlists=asArray(m.playlists);return m.playlists;}
 // Firebase Realtime DB elimina arrays/objetos vacíos y a veces devuelve arrays como objetos
 // indexados. Esto reconstruye la forma esperada: matches como objeto, y cada match con
 // entries[]/playlists[] y cada playlist con items[]. Sin esto, listas vacías rompen el render.
@@ -1019,29 +1020,42 @@ function renderLists(){
   var meta=document.getElementById("listsMeta"),body=document.getElementById("listsBody");
   var m=activeMatch();
   if(!m){meta.textContent="";body.innerHTML='<div class="empty">Primero elegí un partido en <b>Partidos</b>.</div>';return;}
-  meta.textContent=(m.rival||"Rival sin nombre")+" · "+m.cat+" · "+playlists().length+" listas";
   var pls=playlists();
+  meta.textContent=(m.rival||"Rival sin nombre")+" · "+m.cat+" · "+pls.length+" listas";
   if(!pls.length){body.innerHTML='<div class="empty">No hay listas en este partido.<br>Tocá <b>+ Nueva lista</b>, o seleccioná clips en <b>Clips</b> y agregalos a una lista.</div>';return;}
   body.innerHTML="";
   pls.forEach(function(pl){
-    pl.items=asArray(pl.items);
-    var card=document.createElement("div");card.className="card";
-    card.innerHTML='<div class="top"><div class="nm"><b>'+escapeHtml(pl.name||"Lista")+'</b><small>'+pl.items.length+' ítems</small></div></div>';
-    var itemsWrap=document.createElement("div");itemsWrap.style.marginTop="10px";
-    pl.items.forEach(function(it,idx){itemsWrap.appendChild(listItemRow(pl,it,idx));});
-    card.appendChild(itemsWrap);
-    var btns=document.createElement("div");btns.className="cbtns";
-    btns.innerHTML='<button class="go" data-a="play">▶ Reproducir</button>'+
-      '<button data-a="slide">+ Diapositiva</button>'+
-      '<button data-a="rename">Renombrar</button>'+
-      '<button class="danger" data-a="del">Borrar lista</button>';
-    btns.querySelector('[data-a="play"]').onclick=function(){playPlaylist(pl);};
-    btns.querySelector('[data-a="slide"]').onclick=function(){openSlideModal(pl,null);};
-    btns.querySelector('[data-a="rename"]').onclick=function(){var n=prompt("Nombre de la lista:",pl.name);if(n!==null){pl.name=n.trim()||pl.name;save();renderLists();}};
-    btns.querySelector('[data-a="del"]').onclick=function(){if(confirm("¿Borrar la lista \""+pl.name+"\"?")){m.playlists=m.playlists.filter(function(x){return x.id!==pl.id;});save();renderLists();}};
-    card.appendChild(btns);
-    body.appendChild(card);
+    try{
+      body.appendChild(buildListCard(pl,m));
+    }catch(err){
+      // Una lista con datos raros no debe tumbar el resto: mostramos un aviso y seguimos.
+      var e=document.createElement("div");e.className="card";
+      e.innerHTML='<div class="nm"><b>'+escapeHtml(pl&&pl.name?pl.name:"Lista")+'</b><small style="color:#ff9a9a">No se pudo mostrar esta lista</small></div>';
+      body.appendChild(e);
+      console.warn("Lista con problema:",pl,err);
+    }
   });
+}
+function buildListCard(pl,m){
+  pl.items=asArray(pl.items);
+  var card=document.createElement("div");card.className="card";
+  card.innerHTML='<div class="top"><div class="nm"><b>'+escapeHtml(pl.name||"Lista")+'</b><small>'+pl.items.length+' ítems</small></div></div>';
+  var itemsWrap=document.createElement("div");itemsWrap.style.marginTop="10px";
+  pl.items.forEach(function(it,idx){
+    try{itemsWrap.appendChild(listItemRow(pl,it,idx));}catch(e2){console.warn("Ítem con problema:",it,e2);}
+  });
+  card.appendChild(itemsWrap);
+  var btns=document.createElement("div");btns.className="cbtns";
+  btns.innerHTML='<button class="go" data-a="play">▶ Reproducir</button>'+
+    '<button data-a="slide">+ Diapositiva</button>'+
+    '<button data-a="rename">Renombrar</button>'+
+    '<button class="danger" data-a="del">Borrar lista</button>';
+  btns.querySelector('[data-a="play"]').onclick=function(){playPlaylist(pl);};
+  btns.querySelector('[data-a="slide"]').onclick=function(){openSlideModal(pl,null);};
+  btns.querySelector('[data-a="rename"]').onclick=function(){var n=prompt("Nombre de la lista:",pl.name);if(n!==null){pl.name=n.trim()||pl.name;save();renderLists();}};
+  btns.querySelector('[data-a="del"]').onclick=function(){if(confirm("¿Borrar la lista \""+pl.name+"\"?")){m.playlists=m.playlists.filter(function(x){return x.id!==pl.id;});save();renderLists();}};
+  card.appendChild(btns);
+  return card;
 }
 function listItemRow(pl,it,idx){
   var row=document.createElement("div");row.className="listitem"+(it.type==="slide"?" slide":"");
