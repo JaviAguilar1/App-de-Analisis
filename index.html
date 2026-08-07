@@ -136,7 +136,14 @@
   #layoutBtn{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:7px 9px;font-size:14px;font-weight:800;cursor:pointer;}
   #layoutBtn.on{background:var(--blue);border-color:var(--blue);color:#fff;}
   /* #stage agrupa video + divisor + barra fuente + reloj para poder moverlo entero */
-  #stage{display:block;}
+  #stage{display:block;flex-shrink:0;}
+  /* En pantallas anchas y de poca altura (notebook horizontal), el video no debe comerse
+     la pantalla: lo limitamos para que los botones de marcar queden visibles. */
+  @media (min-aspect-ratio:1/1) and (max-height:850px){
+    :root{--vidHcap:38vh;}
+    #videoWrap{height:min(var(--vidH),38vh);}
+    #videoWrap .ph,#localVideo,#ytFrame{max-width:calc(min(var(--vidH),38vh) * 16 / 9);}
+  }
   /* ===== Modo lateral (solo en pantallas anchas) ===== */
   @media (min-width:640px){
     body.side{}
