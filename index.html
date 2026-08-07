@@ -239,6 +239,11 @@
   #slPreview.left{align-items:flex-start;text-align:left;}
   #slPvTitle{font-weight:800;line-height:1.15;margin-bottom:10px;word-break:break-word;}
   #slPvText{line-height:1.4;white-space:pre-wrap;word-break:break-word;}
+  /* Barra flotante para clip suelto sobre el video */
+  #clipBar{position:absolute;left:8px;right:8px;bottom:8px;z-index:20;display:flex;align-items:center;gap:8px;
+    background:rgba(12,18,30,.92);border:1px solid var(--teal);border-radius:11px;padding:7px 10px;backdrop-filter:blur(4px);}
+  #clipBar .ctxt{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #clipBar button{flex:0 0 auto;background:var(--panel2);border:1px solid var(--teal);color:var(--teal);border-radius:8px;font-size:14px;font-weight:800;padding:6px 10px;cursor:pointer;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -279,6 +284,11 @@ try{
     </div>
     <video id="localVideo" playsinline preload="metadata"></video>
     <div id="ytFrame"></div>
+    <div id="clipBar" style="display:none">
+      <div class="ctxt" id="clipBarTxt">—</div>
+      <button id="clipBarFs" title="Pantalla completa">⛶</button>
+      <button id="clipBarStop" title="Parar">■</button>
+    </div>
   </div>
   <div id="vidResize" title="Arrastrá para ajustar el tamaño del video"><div class="bar"></div></div>
   <div class="srcbar">
@@ -881,6 +891,7 @@ function tickClip(){
   if(activeClip.inList&&LP.paused)return; // pausado en presentación: no avanzar
   if(currentMs()>=activeClip.out){
     VID.pause();
+    if(activeClip.single){stopSingleClip();return;}
     if(activeClip.inList){activeClip=null;nextListItem();return;}
     stopClip();
   }
@@ -998,15 +1009,28 @@ document.getElementById("pickClipsAdd").onclick=function(){
   toast(ids.length+" clip"+(ids.length===1?"":"s")+" agregado"+(ids.length===1?"":"s"));
 };
 
-/* --- Reproducir UN clip suelto en pantalla completa (sin arrancar la lista) --- */
+/* --- Reproducir UN clip suelto en el reproductor normal (SIN pantalla completa) --- */
+var singleClip=null; // clip suelto en curso
 function playSingleClip(c){
   if(!VID.ready){toast("Cargá el video de este partido para reproducir");return;}
-  // Usamos el mismo motor de presentación con una lista de un solo ítem.
-  LP.pl={id:"__single",name:c.tag,items:[{type:"clip",clipId:c.id}]};
-  LP.i=-1;LP.paused=false;
-  enterPresent();
-  nextListItem();
+  singleClip={id:c.id,in:parseTime(c.tIn),out:parseTime(c.tOut)};
+  activeClip={id:c.id,in:singleClip.in,out:singleClip.out,single:true};
+  VID.seek(activeClip.in);VID.play();
+  var bar=document.getElementById("clipBar");bar.style.display="flex";
+  document.getElementById("clipBarTxt").textContent=c.tag+"  "+c.tIn+"–"+c.tOut;
 }
+function stopSingleClip(){
+  singleClip=null;activeClip=null;
+  try{VID.pause();}catch(e){}
+  document.getElementById("clipBar").style.display="none";
+}
+document.getElementById("clipBarStop").onclick=stopSingleClip;
+// Botón de pantalla completa manual: expande el video del clip suelto a fullscreen.
+document.getElementById("clipBarFs").onclick=function(){
+  var el=document.getElementById("videoWrap");
+  var f=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+  if(f)try{f.call(el);}catch(e){}
+};
 
 /* ================= PARTIDOS ================= */
 function renderMatches(){
