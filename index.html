@@ -244,6 +244,26 @@
     background:rgba(12,18,30,.92);border:1px solid var(--teal);border-radius:11px;padding:7px 10px;backdrop-filter:blur(4px);}
   #clipBar .ctxt{flex:1;min-width:0;font-size:12.5px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #clipBar button{flex:0 0 auto;background:var(--panel2);border:1px solid var(--teal);color:var(--teal);border-radius:8px;font-size:14px;font-weight:800;padding:6px 10px;cursor:pointer;}
+  /* Barra de marca manual pendiente (esperando segundo toque) */
+  #manualBar{display:none;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--green);border-radius:11px;padding:9px 11px;margin-bottom:11px;}
+  #manualBar.on{display:flex;}
+  #manualBar .txt{flex:1;font-size:13px;font-weight:700;color:var(--green);line-height:1.3;}
+  #manualBar .txt small{display:block;color:var(--muted2);font-weight:500;font-size:11.5px;}
+  #manualBar button{background:none;border:1px solid var(--line);color:var(--muted);border-radius:8px;font-size:12px;font-weight:700;padding:6px 10px;cursor:pointer;}
+  .tag.armed2{outline:2px solid var(--green);outline-offset:1px;}
+  #cfgBtn{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:7px 9px;font-size:14px;cursor:pointer;}
+  /* Filas del panel de ajustes */
+  .cfgrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .cfgrow .cflab{flex:1;min-width:130px;font-size:13px;font-weight:600;}
+  .cfgrow .cfsec{font-size:10px;color:var(--muted2);display:block;font-weight:500;}
+  .cfgseg{display:flex;gap:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:2px;}
+  .cfgseg button{background:none;border:none;color:var(--muted);font-size:11px;font-weight:700;padding:5px 9px;border-radius:6px;cursor:pointer;}
+  .cfgseg button.on{background:var(--blue);color:#fff;}
+  .cfgnum{display:flex;align-items:center;gap:4px;}
+  .cfgnum label{font-size:10px;color:var(--muted2);font-weight:700;}
+  .cfgnum input{width:46px;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:7px;padding:5px 6px;font-size:12px;text-align:center;}
+  .cfgnum.dim{opacity:.35;pointer-events:none;}
+  .cfghead{font-size:11px;font-weight:800;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 2px;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -272,6 +292,7 @@ try{
     <input id="rival" placeholder="Rival" autocomplete="off">
     <div class="seg" id="catGroup"><button class="active" data-cat="5ta">5ta</button><button data-cat="4ta">4ta</button><button data-cat="6ta">6ta</button></div>
     <div class="seg half" id="periodGroup"><button class="active" data-p="1T">1T</button><button data-p="2T">2T</button></div>
+    <button id="cfgBtn" title="Ajustes de tiempos de los tags">⚙️</button>
     <button id="layoutBtn" title="Cambiar disposición (tags abajo / al costado)">⊟</button>
   </div>
 </header>
@@ -323,7 +344,8 @@ try{
   </section>
   <section class="view on" id="viewMark">
     <div id="pendingBar"><div class="txt" id="pendingTxt"></div><button id="pendingCancel">Cancelar</button></div>
-    <p class="legend">El reloj sigue al <b>video de arriba</b>. Captura de cada botón: <b>▶ adelante</b> · <b>◀ atrás</b> (jugada ya vista) · <b>⟷ centrado</b> (±5s). En Transición ofensiva: tocás la <b>zona</b> al recuperar y el <b>desenlace</b> al terminar. Después revisás y presentás los cortes en <b>Clips</b>.</p>
+    <div id="manualBar"><div class="txt" id="manualTxt"></div><button id="manualCancel">Cancelar</button></div>
+    <p class="legend">El reloj sigue al <b>video de arriba</b>. Cada tag usa sus tiempos configurados en <b>⚙️ Ajustes</b>: modo <b>automático</b> (pre/post fijos) o <b>manual</b> (un toque abre, otro cierra). En Transición ofensiva: tocás la <b>zona</b> y luego el <b>desenlace</b>.</p>
     <div id="grids"></div>
   </section>
   <section class="view" id="viewClips">
@@ -410,6 +432,12 @@ try{
   <div id="pickClipsBody" style="max-height:52vh;overflow-y:auto;"></div>
   <div class="row"><button class="act" id="pickClipsCancel">Cancelar</button><button class="act primary" id="pickClipsAdd">Agregar seleccionados</button></div>
 </div></div>
+<div class="modal" id="cfgModal"><div class="sheet sheet-wide">
+  <h4>Ajustes de tiempos de los tags</h4>
+  <p class="modalsub">Para cada tag: <b>Auto</b> usa segundos fijos antes (pre) y después (post) del toque. <b>Manual</b> = un toque abre, otro cierra. Vale para todos los partidos.</p>
+  <div id="cfgBody" style="max-height:58vh;overflow-y:auto;"></div>
+  <div class="row"><button class="act primary" id="cfgClose">Listo</button></div>
+</div></div>
 <div class="modal" id="slideModal"><div class="sheet sheet-wide">
   <h4 id="slideModalTitle">Diapositiva de texto</h4>
   <div class="slgrid">
@@ -464,6 +492,43 @@ var SECTIONS=[
    {sub:"Cómo termina",tags:[["Afuera","pre"],["Al arco","pre"]]}]}
 ];
 var MODEGLYPH={post:"▶",pre:"◀",around:"⟷"};
+// Config global de tiempos por tag. Cada tag: {mode:'auto'|'manual', pre:seg, post:seg}
+// 'auto' usa pre/post fijos alrededor del toque; 'manual' = 2 toques (inicio/fin).
+// Los defaults derivan del modo original de cada tag (post→0/10, pre→10/0, around→5/5).
+var TAGCFG_KEY="analisis_tagcfg_v1";
+var tagCfg={};   // label -> {mode,pre,post}
+function defaultCfgFor(mode){
+  if(mode==="post")return {mode:"auto",pre:0,post:POST};
+  if(mode==="pre")return {mode:"auto",pre:PRE,post:0};
+  return {mode:"auto",pre:AROUND,post:AROUND}; // around
+}
+function allTags(){ // [{label, mode, section, role}]
+  var out=[];
+  SECTIONS.forEach(function(s){
+    if(s.groups)s.groups.forEach(function(g){g.tags.forEach(function(t){out.push({label:t[0],mode:t[1],section:s.name,role:g.role});});});
+    else s.tags.forEach(function(t){out.push({label:t[0],mode:t[1],section:s.name});});
+  });
+  return out;
+}
+function buildDefaultCfg(){
+  var c={};
+  allTags().forEach(function(t){
+    // Los tags de transición con role start/end quedan manual por naturaleza (2 toques).
+    if(t.role==="start"||t.role==="end"){c[t.label]={mode:"manual",pre:0,post:0};}
+    else c[t.label]=defaultCfgFor(t.mode);
+  });
+  return c;
+}
+function loadTagCfg(){
+  var base=buildDefaultCfg();
+  try{var r=localStorage.getItem(TAGCFG_KEY);if(r){var saved=JSON.parse(r);for(var k in saved)if(base[k])base[k]=saved[k];}}catch(e){}
+  tagCfg=base;
+}
+function saveTagCfg(){
+  try{localStorage.setItem(TAGCFG_KEY,JSON.stringify(tagCfg));}catch(e){}
+  if(FBREADY){try{FBDB.ref("tagCfg").set(tagCfg);}catch(e){}}
+}
+function cfgOf(label){return tagCfg[label]||{mode:"auto",pre:AROUND,post:AROUND};}
 var LS_KEY="analisis_db_v1";        // respaldo local de toda la base
 var ACTIVE_KEY="analisis_active_v1"; // id del partido activo
 
@@ -592,6 +657,10 @@ function bindFirebase(cb){
   if(!FBREADY){cb&&cb();return;}
   // Auth anónima preparada para el futuro; si falla, seguimos igual (reglas abiertas).
   var start=function(){
+    // Traer config de tiempos global desde la nube (si existe).
+    try{FBDB.ref("tagCfg").once("value").then(function(cs){
+      var cv=cs.val();if(cv){var base=buildDefaultCfg();for(var k in cv)if(base[k])base[k]=cv[k];tagCfg=base;try{localStorage.setItem(TAGCFG_KEY,JSON.stringify(tagCfg));}catch(e){}buildGrids();}
+    }).catch(function(){});}catch(e){}
     FBDB.ref("matches").once("value").then(function(snap){
       var val=snap.val();
       if(val){DB.matches=val;normalizeDB();saveLocal();setSync("ok","✓ nube");}
@@ -715,7 +784,17 @@ function makeBtn(label,mode,color,role){
   var b=document.createElement("button");
   b.className="tag";b.style.setProperty("--c",COL[color]);b.style.setProperty("--cbg",TINT[color]);
   b.setAttribute("data-label",label);
-  var glyph = role==="start" ? "▷" : (role==="end" ? "◁" : MODEGLYPH[mode]);
+  var glyph;
+  if(role==="start")glyph="▷";
+  else if(role==="end")glyph="◁";
+  else{
+    var c=cfgOf(label);
+    if(c.mode==="manual")glyph="✋";
+    else if((c.pre||0)>0&&(c.post||0)>0)glyph="⟷";
+    else if((c.pre||0)>0)glyph="◀";
+    else if((c.post||0)>0)glyph="▶";
+    else glyph="•";
+  }
   b.innerHTML='<span class="mode">'+glyph+'</span><span>'+label+'</span><span class="count zero" data-c="'+label+'">0</span>';
   b.onclick=function(){logTag(label,mode,color,b,role);};
   return b;
@@ -762,6 +841,8 @@ function renderPending(){
   } else bar.classList.remove("on");
 }
 function logTag(label,mode,color,btn,role){
+  var cfg=cfgOf(label);
+  // Transición ofensiva conserva su lógica original de zona→desenlace.
   if(role==="start"){pending={zone:label,tIn:currentMs()};save();renderPending();flash(btn);
     toast(label+" — marcá el desenlace");if(navigator.vibrate)navigator.vibrate(12);return;}
   if(role==="end"){
@@ -770,17 +851,75 @@ function logTag(label,mode,color,btn,role){
         tIn:fmt(pending.tIn),tOut:fmt(currentMs()),period:state.period,note:""});
       toast(pending.zone+" → "+label+" ✓");pending=null;renderPending();
     } else {
-      var r2=clipRange(currentMs(),"pre");
+      var r2=autoRange(currentMs(),cfg);
       state.entries.push({id:uid(),phase:"Transición ofensiva",tag:label,tIn:fmt(r2[0]),tOut:fmt(r2[1]),period:state.period,note:""});
       toast(label+" · "+fmt(r2[0])+"–"+fmt(r2[1]));
     }
     save();refreshCounts();updateBadge();flash(btn);if(navigator.vibrate)navigator.vibrate(12);return;
   }
-  var t=currentMs();var r=clipRange(t,mode);
+  // MODO MANUAL: primer toque abre, segundo toque cierra (para cualquier tag).
+  if(cfg.mode==="manual"){
+    if(manualPend&&manualPend.label===label){
+      // segundo toque: cerrar
+      var a=Math.min(manualPend.tIn,currentMs()),b2=Math.max(manualPend.tIn,currentMs());
+      state.entries.push({id:uid(),phase:sectionOf(label),tag:label,tIn:fmt(a),tOut:fmt(b2),period:state.period,note:""});
+      manualPend=null;renderManualPend();save();refreshCounts();updateBadge();flash(btn);
+      toast(label+" · "+fmt(a)+"–"+fmt(b2));if(navigator.vibrate)navigator.vibrate(12);return;
+    } else {
+      manualPend={label:label,tIn:currentMs()};renderManualPend();flash(btn);
+      toast(label+" — tocá de nuevo para cerrar");if(navigator.vibrate)navigator.vibrate(12);return;
+    }
+  }
+  // MODO AUTO: un toque, usa pre/post configurados.
+  var r=autoRange(currentMs(),cfg);
   state.entries.push({id:uid(),phase:sectionOf(label),tag:label,tIn:fmt(r[0]),tOut:fmt(r[1]),period:state.period,note:""});
   save();refreshCounts();updateBadge();flash(btn);
   toast(label+" · "+fmt(r[0])+"–"+fmt(r[1]));if(navigator.vibrate)navigator.vibrate(12);
 }
+function autoRange(t,cfg){return [Math.max(0,t-(cfg.pre||0)*1000), t+(cfg.post||0)*1000];}
+// Estado de marca manual pendiente (tag esperando el segundo toque).
+var manualPend=null;
+function renderManualPend(){
+  document.querySelectorAll(".tag").forEach(function(b){b.classList.remove("armed2");});
+  var bar=document.getElementById("manualBar");
+  if(manualPend){
+    if(bar){bar.classList.add("on");document.getElementById("manualTxt").innerHTML="Marca manual: "+escapeHtml(manualPend.label)+"<small>inicio en "+fmt(manualPend.tIn)+" — tocá de nuevo para cerrar</small>";}
+    document.querySelectorAll('[data-label="'+manualPend.label+'"]').forEach(function(b){b.classList.add("armed2");});
+  } else if(bar){bar.classList.remove("on");}
+}
+var _mc=document.getElementById("manualCancel");if(_mc)_mc.onclick=function(){manualPend=null;renderManualPend();toast("Marca manual cancelada");};
+
+/* ===== Panel de Ajustes de tiempos ===== */
+function renderCfgPanel(){
+  var body=document.getElementById("cfgBody");body.innerHTML="";
+  var lastSec=null;
+  allTags().forEach(function(t){
+    if(t.section!==lastSec){lastSec=t.section;var h=document.createElement("div");h.className="cfghead";h.textContent=t.section;body.appendChild(h);}
+    var c=cfgOf(t.label);
+    var row=document.createElement("div");row.className="cfgrow";
+    var isTrans=(t.role==="start"||t.role==="end");
+    row.innerHTML='<div class="cflab">'+escapeHtml(t.label)+(isTrans?'<span class="cfsec">transición (2 toques, fijo)</span>':'')+'</div>';
+    if(isTrans){body.appendChild(row);return;} // los de transición no se configuran
+    var seg=document.createElement("div");seg.className="cfgseg";
+    seg.innerHTML='<button data-m="auto">Auto</button><button data-m="manual">Manual</button>';
+    var pre=document.createElement("div");pre.className="cfgnum";
+    pre.innerHTML='<label>pre</label><input type="number" min="0" value="'+(c.pre||0)+'"><label>s</label>';
+    var post=document.createElement("div");post.className="cfgnum";
+    post.innerHTML='<label>post</label><input type="number" min="0" value="'+(c.post||0)+'"><label>s</label>';
+    function refreshMode(){
+      seg.querySelectorAll("button").forEach(function(b){b.classList.toggle("on",b.getAttribute("data-m")===c.mode);});
+      var dim=(c.mode!=="auto");pre.classList.toggle("dim",dim);post.classList.toggle("dim",dim);
+    }
+    seg.querySelectorAll("button").forEach(function(b){b.onclick=function(){c.mode=b.getAttribute("data-m");tagCfg[t.label]=c;refreshMode();saveTagCfg();};});
+    pre.querySelector("input").onchange=function(){c.pre=Math.max(0,parseInt(this.value)||0);tagCfg[t.label]=c;saveTagCfg();};
+    post.querySelector("input").onchange=function(){c.post=Math.max(0,parseInt(this.value)||0);tagCfg[t.label]=c;saveTagCfg();};
+    row.appendChild(seg);row.appendChild(pre);row.appendChild(post);
+    body.appendChild(row);
+    refreshMode();
+  });
+}
+document.getElementById("cfgBtn").onclick=function(){renderCfgPanel();document.getElementById("cfgModal").classList.add("on");};
+document.getElementById("cfgClose").onclick=function(){document.getElementById("cfgModal").classList.remove("on");buildGrids();};
 function uid(){return Date.now()+Math.random();}
 function flash(btn){btn.classList.add("flash");setTimeout(function(){btn.classList.remove("flash");},140);}
 document.getElementById("pendingCancel").onclick=function(){pending=null;save();renderPending();toast("Transición cancelada");};
@@ -1572,6 +1711,7 @@ window.addEventListener("touchend",sEnd);
 
 // ===== Arranque =====
 loadLocal();
+loadTagCfg();
 if(!Object.keys(DB.matches).length)migrateOld(); // trae base vieja de un solo partido si existía
 buildGrids();setPlay();renderClock();
 if(localStorage.getItem(LAYOUT_KEY)==="side"&&window.innerWidth>=640)applyLayout(true);else applyLayout(false);
