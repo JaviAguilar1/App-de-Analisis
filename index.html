@@ -1143,11 +1143,38 @@ function enterPresent(){
   else if(VID.kind==="yt"&&ytFrameEl){pVideo.appendChild(ytFrameEl);}
   requestFS(presentEl);
   armBarAutohide();
+  // Dimensionar el video al máximo 16:9 que entra, tras el fullscreen (dejamos un tick).
+  setTimeout(sizeVideo,120);setTimeout(sizeVideo,450);
 }
+// Calcula el rectángulo 16:9 más grande que entra en #pStage y lo aplica al reproductor,
+// centrado. Así el video llena la pantalla sin deformarse ni quedar chico.
+function sizeVideo(){
+  if(!presentEl.classList.contains("on"))return;
+  var stage=pStage.getBoundingClientRect();
+  var W=stage.width,H=stage.height;
+  if(W<10||H<10)return;
+  var ar=16/9;
+  var w=W,h=W/ar;
+  if(h>H){h=H;w=H*ar;}
+  var el=(VID.kind==="local")?localVideo:ytFrameEl;
+  if(!el)return;
+  pVideo.style.width=w+"px";pVideo.style.height=h+"px";
+  pVideo.style.position="absolute";
+  pVideo.style.left=((W-w)/2)+"px";
+  pVideo.style.top=((H-h)/2)+"px";
+  el.style.width="100%";el.style.height="100%";
+  var ifr=el.querySelector&&el.querySelector("iframe");
+  if(ifr){ifr.style.width="100%";ifr.style.height="100%";}
+}
+window.addEventListener("resize",function(){if(presentEl.classList.contains("on"))sizeVideo();});
+document.addEventListener("fullscreenchange",function(){if(presentEl.classList.contains("on"))setTimeout(sizeVideo,150);});
 function exitPresent(){
   clearTimeout(LP.slideT);clearTimeout(barHideT);
   LP.pl=null;LP.i=-1;activeClip=null;
   try{VID.pause();}catch(e){}
+  // Limpiar estilos inline que aplicó sizeVideo, para no romper el modo normal.
+  pVideo.style.width="";pVideo.style.height="";pVideo.style.left="";pVideo.style.top="";pVideo.style.position="";
+  [localVideo,ytFrameEl].forEach(function(el){if(el){el.style.width="";el.style.height="";var ifr=el.querySelector&&el.querySelector("iframe");if(ifr){ifr.style.width="";ifr.style.height="";}}});
   // Devolver el reproductor a su lugar original en #videoWrap.
   var wrap=document.getElementById("videoWrap");
   if(localVideo&&localVideo.parentNode===pVideo)wrap.insertBefore(localVideo,wrap.querySelector("#ytFrame"));
@@ -1201,6 +1228,7 @@ function renderPItem(){
     var c=findClip(it.clipId);
     if(!c){nextListItem();return;} // clip borrado: saltar
     pSlide.classList.remove("on");pVideo.classList.add("on");
+    sizeVideo();
     document.getElementById("pInfo").innerHTML=escapeHtml(c.tag)+"<small>"+pos+" · "+c.tIn+"–"+c.tOut+(c.note?" · "+escapeHtml(c.note):"")+"</small>";
     activeClip={id:c.id,in:parseTime(c.tIn),out:parseTime(c.tOut),inList:true};
     VID.seek(activeClip.in);LP.paused=false;setPlayIcon();VID.play();
