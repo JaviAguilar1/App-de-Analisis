@@ -225,6 +225,20 @@
   .syncpill{position:fixed;top:8px;right:8px;z-index:70;font-size:10px;font-weight:800;padding:3px 8px;border-radius:20px;background:var(--panel);border:1px solid var(--line);color:var(--muted2);opacity:.85;}
   .syncpill.ok{color:var(--green);border-color:#1c4;}
   .syncpill.off{color:#ffb86b;}
+  /* ===== Modal de diapositiva con formato ===== */
+  .sheet-wide{max-width:680px;width:calc(100vw - 32px);}
+  .slgrid{display:flex;gap:14px;flex-wrap:wrap;}
+  .slcol{flex:1;min-width:240px;}
+  .fmtrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:6px 0 4px;}
+  .fmtlab{font-size:11px;font-weight:700;color:var(--muted2);}
+  .fmtrow input[type=color]{width:34px;height:28px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);padding:2px;cursor:pointer;}
+  .note.sel{padding:6px 7px;font-size:12px;width:auto;flex:0 0 auto;}
+  .note.dur{width:52px;flex:0 0 auto;padding:6px 7px;}
+  #slPreview{border:1px solid var(--line);border-radius:11px;min-height:150px;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;padding:18px;text-align:center;background:#000;overflow:hidden;}
+  #slPreview.left{align-items:flex-start;text-align:left;}
+  #slPvTitle{font-weight:800;line-height:1.15;margin-bottom:10px;word-break:break-word;}
+  #slPvText{line-height:1.4;white-space:pre-wrap;word-break:break-word;}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -380,11 +394,40 @@ try{
   <input class="note" id="newListName" placeholder="Nombre de la lista">
   <div class="row"><button class="act" id="addListCancel">Cancelar</button><button class="act primary" id="addListCreate">Crear y agregar</button></div>
 </div></div>
-<div class="modal" id="slideModal"><div class="sheet">
+<div class="modal" id="pickClipsModal"><div class="sheet sheet-wide">
+  <h4 id="pickClipsTitle">Agregar clips a la lista</h4>
+  <p class="modalsub" id="pickClipsSub"></p>
+  <div id="pickClipsBody" style="max-height:52vh;overflow-y:auto;"></div>
+  <div class="row"><button class="act" id="pickClipsCancel">Cancelar</button><button class="act primary" id="pickClipsAdd">Agregar seleccionados</button></div>
+</div></div>
+<div class="modal" id="slideModal"><div class="sheet sheet-wide">
   <h4 id="slideModalTitle">Diapositiva de texto</h4>
-  <label>Título</label><input class="note" id="slTitle" placeholder="ej: Punto clave">
-  <label>Texto</label><textarea class="note" id="slText" rows="3" placeholder="Mensaje que querés mostrar"></textarea>
-  <label>Duración (segundos)</label><input class="note" id="slDur" type="number" min="1" value="6" inputmode="numeric">
+  <div class="slgrid">
+    <div class="slcol">
+      <label>Título</label><input class="note" id="slTitle" placeholder="ej: Punto clave">
+      <div class="fmtrow">
+        <span class="fmtlab">Color</span><input type="color" id="slTitleColor" value="#f5c451">
+        <span class="fmtlab">Tamaño</span>
+        <select class="note sel" id="slTitleSize"><option value="s">Chico</option><option value="m" selected>Mediano</option><option value="l">Grande</option><option value="xl">Muy grande</option></select>
+      </div>
+      <label>Texto</label><textarea class="note" id="slText" rows="3" placeholder="Mensaje que querés mostrar"></textarea>
+      <div class="fmtrow">
+        <span class="fmtlab">Color</span><input type="color" id="slTextColor" value="#ffffff">
+        <span class="fmtlab">Tamaño</span>
+        <select class="note sel" id="slTextSize"><option value="s">Chico</option><option value="m" selected>Mediano</option><option value="l">Grande</option><option value="xl">Muy grande</option></select>
+      </div>
+      <div class="fmtrow">
+        <span class="fmtlab">Fondo</span><input type="color" id="slBg" value="#000000">
+        <span class="fmtlab">Alinear</span>
+        <select class="note sel" id="slAlign"><option value="center" selected>Centro</option><option value="left">Izquierda</option></select>
+        <span class="fmtlab">Duración</span><input class="note dur" id="slDur" type="number" min="1" value="6" inputmode="numeric"><span class="fmtlab">s</span>
+      </div>
+    </div>
+    <div class="slcol">
+      <label>Vista previa</label>
+      <div id="slPreview"><div id="slPvTitle"></div><div id="slPvText"></div></div>
+    </div>
+  </div>
   <div class="row"><button class="act" id="slCancel">Cancelar</button><button class="act primary" id="slSave">Agregar</button></div>
 </div></div>
 <script>
@@ -916,6 +959,55 @@ document.getElementById("addListCreate").onclick=function(){
   playlists().push(pl);addClipsToPlaylist(pl,ids);
 };
 
+/* --- Agregar clips a una lista existente, desde la propia lista (+ Clip) --- */
+var pickPl=null,pickSel={};
+function openAddClipsToList(pl){
+  pickPl=pl;pickSel={};
+  document.getElementById("pickClipsTitle").textContent='Agregar clips a "'+pl.name+'"';
+  var body=document.getElementById("pickClipsBody");
+  var ents=orderedEntries();
+  if(!ents.length){body.innerHTML='<div class="empty">Este partido no tiene clips marcados todavía.</div>';}
+  else{
+    body.innerHTML="";
+    var colorOf={};SECTIONS.forEach(function(s){colorOf[s.name]=COL[s.color];});
+    ents.forEach(function(e){
+      var row=document.createElement("div");row.className="clip";row.setAttribute("data-id",e.id);
+      row.innerHTML='<div class="sel"></div>'+
+        '<div class="t"><b>'+(e.period||"1T")+'</b> '+e.tIn+'–'+e.tOut+'</div>'+
+        '<div class="lab">'+escapeHtml(e.tag)+(e.note?'<small>'+escapeHtml(e.note)+'</small>':'')+'</div>'+
+        '<div class="ph2" style="background:'+(colorOf[e.phase]||"#888")+'"></div>';
+      var sel=row.querySelector(".sel");
+      function tog(){pickSel[e.id]=!pickSel[e.id];sel.classList.toggle("on",pickSel[e.id]);sel.textContent=pickSel[e.id]?"✓":"";updatePickCount();}
+      row.onclick=tog;
+      body.appendChild(row);
+    });
+  }
+  updatePickCount();
+  document.getElementById("pickClipsModal").classList.add("on");
+}
+function updatePickCount(){
+  var n=Object.keys(pickSel).filter(function(k){return pickSel[k];}).length;
+  document.getElementById("pickClipsSub").textContent=n+" clip"+(n===1?"":"s")+" seleccionado"+(n===1?"":"s");
+}
+document.getElementById("pickClipsCancel").onclick=function(){document.getElementById("pickClipsModal").classList.remove("on");};
+document.getElementById("pickClipsAdd").onclick=function(){
+  var ids=Object.keys(pickSel).filter(function(k){return pickSel[k];});
+  if(!ids.length){toast("No seleccionaste ningún clip");return;}
+  ids.forEach(function(id){pickPl.items.push({type:"clip",clipId:id});});
+  save();document.getElementById("pickClipsModal").classList.remove("on");renderLists();
+  toast(ids.length+" clip"+(ids.length===1?"":"s")+" agregado"+(ids.length===1?"":"s"));
+};
+
+/* --- Reproducir UN clip suelto en pantalla completa (sin arrancar la lista) --- */
+function playSingleClip(c){
+  if(!VID.ready){toast("Cargá el video de este partido para reproducir");return;}
+  // Usamos el mismo motor de presentación con una lista de un solo ítem.
+  LP.pl={id:"__single",name:c.tag,items:[{type:"clip",clipId:c.id}]};
+  LP.i=-1;LP.paused=false;
+  enterPresent();
+  nextListItem();
+}
+
 /* ================= PARTIDOS ================= */
 function renderMatches(){
   var body=document.getElementById("matchesBody");
@@ -1049,10 +1141,12 @@ function buildListCard(pl,m){
   card.appendChild(itemsWrap);
   var btns=document.createElement("div");btns.className="cbtns";
   btns.innerHTML='<button class="go" data-a="play">▶ Reproducir</button>'+
+    '<button data-a="clip">+ Clip</button>'+
     '<button data-a="slide">+ Diapositiva</button>'+
     '<button data-a="rename">Renombrar</button>'+
     '<button class="danger" data-a="del">Borrar lista</button>';
   btns.querySelector('[data-a="play"]').onclick=function(){playPlaylist(pl);};
+  btns.querySelector('[data-a="clip"]').onclick=function(){openAddClipsToList(pl);};
   btns.querySelector('[data-a="slide"]').onclick=function(){openSlideModal(pl,null);};
   btns.querySelector('[data-a="rename"]').onclick=function(){var n=prompt("Nombre de la lista:",pl.name);if(n!==null){pl.name=n.trim()||pl.name;save();renderLists();}};
   btns.querySelector('[data-a="del"]').onclick=function(){if(confirm("¿Borrar la lista \""+pl.name+"\"?")){m.playlists=m.playlists.filter(function(x){return x.id!==pl.id;});save();renderLists();}};
@@ -1075,8 +1169,19 @@ function listItemRow(pl,it,idx){
       '<button class="rm">×</button>';
   }
   row.innerHTML=inner;
-  row.querySelector(".rm").onclick=function(){pl.items.splice(idx,1);save();renderLists();};
-  if(it.type==="slide")row.querySelector(".info").onclick=function(){openSlideModal(pl,idx);};
+  row.querySelector(".rm").onclick=function(e){e.stopPropagation();pl.items.splice(idx,1);save();renderLists();};
+  if(it.type==="slide"){
+    row.querySelector(".info").onclick=function(){openSlideModal(pl,idx);};
+    row.querySelector(".ic").style.cursor="pointer";
+    row.querySelector(".ic").onclick=function(){openSlideModal(pl,idx);};
+  }else{
+    // Tocar el clip (ícono ▶ o el texto) lo reproduce SOLO, sin arrancar toda la lista.
+    var play=function(){var c=findClip(it.clipId);if(!c){toast("Ese clip ya no existe");return;}playSingleClip(c);};
+    row.querySelector(".ic").style.cursor="pointer";
+    row.querySelector(".ic").onclick=play;
+    row.querySelector(".info").style.cursor="pointer";
+    row.querySelector(".info").onclick=play;
+  }
   bindDrag(row,pl);
   return row;
 }
@@ -1100,25 +1205,57 @@ document.getElementById("newListBtn").onclick=function(){
 };
 // --- Diapositivas ---
 var slidePl=null,slideIdx=null;
+// Mapa de tamaños a px (título y texto usan la misma escala relativa).
+var SLIDE_SIZES={title:{s:26,m:38,l:52,xl:68},text:{s:16,m:22,l:30,xl:40}};
+function slGet(id){return document.getElementById(id);}
 function openSlideModal(pl,idx){
   slidePl=pl;slideIdx=idx;
   var it=(idx!==null)?pl.items[idx]:null;
-  document.getElementById("slideModalTitle").textContent=(idx!==null)?"Editar diapositiva":"Nueva diapositiva";
-  document.getElementById("slSave").textContent=(idx!==null)?"Guardar":"Agregar";
-  document.getElementById("slTitle").value=it?(it.title||""):"";
-  document.getElementById("slText").value=it?(it.text||""):"";
-  document.getElementById("slDur").value=it?(it.dur||6):6;
-  document.getElementById("slideModal").classList.add("on");
-  setTimeout(function(){document.getElementById("slTitle").focus();},50);
+  slGet("slideModalTitle").textContent=(idx!==null)?"Editar diapositiva":"Nueva diapositiva";
+  slGet("slSave").textContent=(idx!==null)?"Guardar":"Agregar";
+  slGet("slTitle").value=it?(it.title||""):"";
+  slGet("slText").value=it?(it.text||""):"";
+  slGet("slDur").value=it?(it.dur||6):6;
+  var f=(it&&it.fmt)?it.fmt:{};
+  slGet("slTitleColor").value=f.titleColor||"#f5c451";
+  slGet("slTextColor").value=f.textColor||"#ffffff";
+  slGet("slBg").value=f.bg||"#000000";
+  slGet("slTitleSize").value=f.titleSize||"m";
+  slGet("slTextSize").value=f.textSize||"m";
+  slGet("slAlign").value=f.align||"center";
+  updateSlidePreview();
+  slGet("slideModal").classList.add("on");
+  setTimeout(function(){slGet("slTitle").focus();},50);
 }
-document.getElementById("slCancel").onclick=function(){document.getElementById("slideModal").classList.remove("on");};
-document.getElementById("slSave").onclick=function(){
-  var title=document.getElementById("slTitle").value.trim();
-  var text=document.getElementById("slText").value.trim();
-  var dur=Math.max(1,parseInt(document.getElementById("slDur").value)||6);
-  var it={type:"slide",title:title,text:text,dur:dur};
+function readSlideFmt(){
+  return {
+    titleColor:slGet("slTitleColor").value, textColor:slGet("slTextColor").value, bg:slGet("slBg").value,
+    titleSize:slGet("slTitleSize").value, textSize:slGet("slTextSize").value, align:slGet("slAlign").value
+  };
+}
+function updateSlidePreview(){
+  var f=readSlideFmt();
+  var pv=slGet("slPreview"),pt=slGet("slPvTitle"),px=slGet("slPvText");
+  pv.style.background=f.bg;
+  pv.classList.toggle("left",f.align==="left");
+  pt.textContent=slGet("slTitle").value||"Título";
+  px.textContent=slGet("slText").value||"Texto de la diapositiva";
+  pt.style.color=f.titleColor;pt.style.fontSize=(SLIDE_SIZES.title[f.titleSize]*0.5)+"px";
+  px.style.color=f.textColor;px.style.fontSize=(SLIDE_SIZES.text[f.textSize]*0.6)+"px";
+  pt.style.display=slGet("slTitle").value?"block":"block";
+}
+// Vista previa en vivo al cambiar cualquier control.
+["slTitle","slText","slTitleColor","slTextColor","slBg","slTitleSize","slTextSize","slAlign"].forEach(function(id){
+  var el=slGet(id);if(el){el.addEventListener("input",updateSlidePreview);el.addEventListener("change",updateSlidePreview);}
+});
+slGet("slCancel").onclick=function(){slGet("slideModal").classList.remove("on");};
+slGet("slSave").onclick=function(){
+  var title=slGet("slTitle").value.trim();
+  var text=slGet("slText").value.trim();
+  var dur=Math.max(1,parseInt(slGet("slDur").value)||6);
+  var it={type:"slide",title:title,text:text,dur:dur,fmt:readSlideFmt()};
   if(slideIdx!==null)slidePl.items[slideIdx]=it;else slidePl.items.push(it);
-  save();document.getElementById("slideModal").classList.remove("on");renderLists();
+  save();slGet("slideModal").classList.remove("on");renderLists();
 };
 
 /* ========= Reproductor de LISTA (clips + diapositivas) ========= */
@@ -1218,8 +1355,20 @@ function renderPItem(){
   if(it.type==="slide"){
     LP.kind="slide";
     pVideo.classList.remove("on");pSlide.classList.add("on");
-    document.getElementById("pTitle").textContent=it.title||"";
-    document.getElementById("pText").textContent=it.text||"";
+    var pt=document.getElementById("pTitle"),px=document.getElementById("pText");
+    pt.textContent=it.title||"";
+    px.textContent=it.text||"";
+    // Aplicar formato guardado (color, tamaño, alineación, fondo).
+    var f=it.fmt||{};
+    pSlide.style.textAlign=(f.align==="left")?"left":"center";
+    pSlide.style.alignItems=(f.align==="left")?"flex-start":"center";
+    pStage.style.background=f.bg||"#000";
+    pSlide.style.background="transparent";
+    pt.style.color=f.titleColor||"var(--gold)";
+    px.style.color=f.textColor||"#fff";
+    pt.style.fontSize=(SLIDE_SIZES.title[f.titleSize||"m"])+"px";
+    px.style.fontSize=(SLIDE_SIZES.text[f.textSize||"m"])+"px";
+    pt.style.display=(it.title)?"block":"none";
     document.getElementById("pInfo").innerHTML=escapeHtml(LP.pl.name)+"<small>Diapositiva "+pos+"</small>";
     try{VID.pause();}catch(e){}
     LP.slideRemain=(it.dur||6)*1000;
@@ -1230,6 +1379,7 @@ function renderPItem(){
     var c=findClip(it.clipId);
     if(!c){nextListItem();return;} // clip borrado: saltar
     pSlide.classList.remove("on");pVideo.classList.add("on");
+    pStage.style.background="#000";
     sizeVideo();
     document.getElementById("pInfo").innerHTML=escapeHtml(c.tag)+"<small>"+pos+" · "+c.tIn+"–"+c.tOut+(c.note?" · "+escapeHtml(c.note):"")+"</small>";
     activeClip={id:c.id,in:parseTime(c.tIn),out:parseTime(c.tOut),inList:true};
