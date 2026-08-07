@@ -99,7 +99,7 @@
   .sheet input.note{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:10px;font-size:15px;margin-bottom:13px;}
   .sheet .row{display:flex;gap:8px;}
   /* ---- Video ---- */
-  :root{--vidH:42vh;}
+  :root{--vidH:50vh;}
   #videoWrap{background:#000;position:relative;width:100%;display:flex;justify-content:center;
     height:var(--vidH);overflow:hidden;}
   #videoWrap .ph{width:100%;max-width:calc(var(--vidH) * 16 / 9);height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted2);
@@ -137,13 +137,8 @@
   #layoutBtn.on{background:var(--blue);border-color:var(--blue);color:#fff;}
   /* #stage agrupa video + divisor + barra fuente + reloj para poder moverlo entero */
   #stage{display:block;flex-shrink:0;}
-  /* En pantallas anchas y de poca altura (notebook horizontal), el video no debe comerse
-     la pantalla: lo limitamos para que los botones de marcar queden visibles. */
-  @media (min-aspect-ratio:1/1) and (max-height:850px){
-    :root{--vidHcap:38vh;}
-    #videoWrap{height:min(var(--vidH),38vh);}
-    #videoWrap .ph,#localVideo,#ytFrame{max-width:calc(min(var(--vidH),38vh) * 16 / 9);}
-  }
+  /* El tope de altura del video lo maneja el JS (clampVidH), que reserva espacio real
+     para al menos 2 filas de tags. Funciona igual con escalado de Windows / cualquier pantalla. */
   /* ===== Modo lateral (solo en pantallas anchas) ===== */
   @media (min-width:640px){
     body.side{}
@@ -1307,20 +1302,32 @@ function stopListPlayer(){exitPresent();}
 var VID_H_KEY="analisis_vidH";
 var resizeEl=document.getElementById("vidResize");
 function clampVidH(px){
-  // Tope según la forma de la pantalla: en notebook/horizontal (ancha y baja) el video
-  // no puede pasar del ~48% del alto, para que siempre queden visibles los tags y la nav.
-  var wide=window.innerWidth>window.innerHeight;
-  var factor=wide?0.48:0.62;
-  var min=110,max=Math.round(window.innerHeight*factor);
+  // Reservamos espacio real (en px del navegador, ya con el escalado aplicado) para que
+  // SIEMPRE se vean el header + reloj + barra de fuente + al menos 2 filas de tags + la nav.
+  // Así el video nunca tapa los tags, en notebook escalada, monitor o celular.
+  var vh=window.innerHeight;
+  var header=document.querySelector("header"), stage=document.getElementById("stage");
+  var hH=header?header.getBoundingClientRect().height:60;
+  // Alto aprox de los controles bajo el video (divisor + barra fuente + reloj):
+  var controls=130;
+  // 2 filas completas de tags + encabezado de sección + nav inferior + colchón:
+  var tagsMin=58*2+22+70+40;
+  var max=Math.round(vh-hH-controls-tagsMin);
+  var min=100;
+  if(max<min)max=min;               // pantallas muy chicas: al menos algo de video
   return Math.max(min,Math.min(max,px));
 }
 function setVidH(px){px=clampVidH(px);document.documentElement.style.setProperty("--vidH",px+"px");}
+// Reparto inicial 50/50 salvo que el usuario haya guardado su preferencia.
+function defaultVidH(){return Math.round(window.innerHeight*0.5);}
 (function initVidH(){
   var saved=parseInt(localStorage.getItem(VID_H_KEY)||"",10);
-  // Re-aplicamos el clamp: si había un valor viejo demasiado grande, lo corrige.
-  if(saved>0){var c=clampVidH(saved);setVidH(c);if(c!==saved)localStorage.setItem(VID_H_KEY,c);}
+  var target=(saved>0)?saved:defaultVidH();
+  var c=clampVidH(target);
+  setVidH(c);
+  if(saved>0&&c!==saved)localStorage.setItem(VID_H_KEY,c);
 })();
-// Al cambiar el tamaño/orientación, re-aplicar el tope por si el valor guardado ya no entra.
+// Al cambiar tamaño/orientación, re-aplicar el tope por si ya no entra.
 window.addEventListener("resize",function(){
   var cur=parseInt(getComputedStyle(document.documentElement).getPropertyValue("--vidH"),10);
   if(cur>0)setVidH(cur);
@@ -1345,7 +1352,7 @@ window.addEventListener("touchmove",dragMove,{passive:false});
 window.addEventListener("mouseup",dragEnd);
 window.addEventListener("touchend",dragEnd);
 // Doble toque en el divisor = volver al tamaño por defecto
-resizeEl.addEventListener("dblclick",function(){document.documentElement.style.setProperty("--vidH","42vh");localStorage.removeItem(VID_H_KEY);});
+resizeEl.addEventListener("dblclick",function(){localStorage.removeItem(VID_H_KEY);setVidH(defaultVidH());});
 
 /* ===== Alternar layout: tags abajo / tags al costado ===== */
 var LAYOUT_KEY="tigre_tagger_layout";
