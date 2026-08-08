@@ -513,8 +513,9 @@ function allTags(){ // [{label, mode, section, role}]
 function buildDefaultCfg(){
   var c={};
   allTags().forEach(function(t){
-    // Los tags de transición con role start/end quedan manual por naturaleza (2 toques).
-    if(t.role==="start"||t.role==="end"){c[t.label]={mode:"manual",pre:0,post:0};}
+    // Transiciones: la zona (start) lleva 'pre', el desenlace (end) lleva 'post'.
+    if(t.role==="start"){c[t.label]={mode:"trans",pre:0,post:0};}
+    else if(t.role==="end"){c[t.label]={mode:"trans",pre:0,post:0};}
     else c[t.label]=defaultCfgFor(t.mode);
   });
   return c;
@@ -842,18 +843,21 @@ function renderPending(){
 }
 function logTag(label,mode,color,btn,role){
   var cfg=cfgOf(label);
-  // Transición ofensiva conserva su lógica original de zona→desenlace.
-  if(role==="start"){pending={zone:label,tIn:currentMs()};save();renderPending();flash(btn);
+  // Transición: la zona guarda el pre configurado; el desenlace suma su post.
+  if(role==="start"){
+    pending={zone:label,tIn:currentMs(),pre:(cfg.pre||0)};save();renderPending();flash(btn);
     toast(label+" — marcá el desenlace");if(navigator.vibrate)navigator.vibrate(12);return;}
   if(role==="end"){
+    var post=(cfg.post||0)*1000;
     if(pending){
+      var ini=Math.max(0,pending.tIn-(pending.pre||0)*1000);
       state.entries.push({id:uid(),phase:"Transición ofensiva",tag:pending.zone+" → "+label,
-        tIn:fmt(pending.tIn),tOut:fmt(currentMs()),period:state.period,note:""});
+        tIn:fmt(ini),tOut:fmt(currentMs()+post),period:state.period,note:""});
       toast(pending.zone+" → "+label+" ✓");pending=null;renderPending();
     } else {
-      var r2=autoRange(currentMs(),cfg);
-      state.entries.push({id:uid(),phase:"Transición ofensiva",tag:label,tIn:fmt(r2[0]),tOut:fmt(r2[1]),period:state.period,note:""});
-      toast(label+" · "+fmt(r2[0])+"–"+fmt(r2[1]));
+      // desenlace suelto (sin zona previa): usa su post hacia atrás como margen
+      state.entries.push({id:uid(),phase:"Transición ofensiva",tag:label,tIn:fmt(Math.max(0,currentMs()-5000)),tOut:fmt(currentMs()+post),period:state.period,note:""});
+      toast(label+" · marca suelta");
     }
     save();refreshCounts();updateBadge();flash(btn);if(navigator.vibrate)navigator.vibrate(12);return;
   }
@@ -897,9 +901,18 @@ function renderCfgPanel(){
     if(t.section!==lastSec){lastSec=t.section;var h=document.createElement("div");h.className="cfghead";h.textContent=t.section;body.appendChild(h);}
     var c=cfgOf(t.label);
     var row=document.createElement("div");row.className="cfgrow";
-    var isTrans=(t.role==="start"||t.role==="end");
-    row.innerHTML='<div class="cflab">'+escapeHtml(t.label)+(isTrans?'<span class="cfsec">transición (2 toques, fijo)</span>':'')+'</div>';
-    if(isTrans){body.appendChild(row);return;} // los de transición no se configuran
+    if(t.role==="start"||t.role==="end"){
+      // Transición: la zona (start) ajusta 'pre' (margen antes de recuperar);
+      // el desenlace (end) ajusta 'post' (margen después de terminar la jugada).
+      var which=(t.role==="start")?"pre":"post";
+      var lbl=(t.role==="start")?"antes de la zona":"después del desenlace";
+      row.innerHTML='<div class="cflab">'+escapeHtml(t.label)+'<span class="cfsec">transición · margen '+lbl+'</span></div>';
+      var num=document.createElement("div");num.className="cfgnum";
+      num.innerHTML='<label>'+which+'</label><input type="number" min="0" value="'+(c[which]||0)+'"><label>s</label>';
+      num.querySelector("input").onchange=function(){c[which]=Math.max(0,parseInt(this.value)||0);c.mode="trans";tagCfg[t.label]=c;saveTagCfg();};
+      row.appendChild(num);
+      body.appendChild(row);return;
+    }
     var seg=document.createElement("div");seg.className="cfgseg";
     seg.innerHTML='<button data-m="auto">Auto</button><button data-m="manual">Manual</button>';
     var pre=document.createElement("div");pre.className="cfgnum";
@@ -1672,10 +1685,22 @@ var LAYOUT_KEY="tigre_tagger_layout";
 var SIDEW_KEY="tigre_tagger_sideW";
 var layoutBtn=document.getElementById("layoutBtn");
 function applyLayout(side){
+  // El modo lateral necesita ancho para video + panel. Si no entra, caemos a "abajo".
+  if(side&&window.innerWidth<900){side=false;}
   document.body.classList.toggle("side",side);
   layoutBtn.classList.toggle("on",side);
   layoutBtn.textContent=side?"▤":"⊟";
   layoutBtn.title=side?"Tags al costado (tocá para pasarlos abajo)":"Tags abajo (tocá para pasarlos al costado)";
+  if(side){
+    // Asegurar que --sideW deja lugar al panel derecho.
+    var sw=parseInt(getComputedStyle(document.documentElement).getPropertyValue("--sideW"),10);
+    var maxSW=Math.max(280,window.innerWidth-320);
+    if(!sw||sw>maxSW)document.documentElement.style.setProperty("--sideW",Math.min(maxSW,Math.round(window.innerWidth*0.52))+"px");
+  }else{
+    // En modo abajo, aplicar el tope de altura de video (garantiza 2 filas de tags).
+    var cur=parseInt(getComputedStyle(document.documentElement).getPropertyValue("--vidH"),10);
+    if(cur>0)setVidH(cur);else setVidH(defaultVidH());
+  }
   setTimeout(renderClock,60);
 }
 layoutBtn.onclick=function(){
@@ -1686,7 +1711,10 @@ layoutBtn.onclick=function(){
 };
 (function initSideW(){
   var sw=parseInt(localStorage.getItem(SIDEW_KEY)||"",10);
-  if(sw>0)document.documentElement.style.setProperty("--sideW",sw+"px");
+  // El panel de la derecha necesita al menos 300px; el video al menos 280px.
+  // Si el valor guardado no deja espacio, lo corregimos (bug notebook).
+  var maxSW=Math.max(280,window.innerWidth-320);
+  if(sw>0){var c=Math.min(sw,maxSW);document.documentElement.style.setProperty("--sideW",c+"px");if(c!==sw)localStorage.setItem(SIDEW_KEY,c);}
 })();
 var sideResizeEl=document.getElementById("sideResize");
 var sdrag=false;
